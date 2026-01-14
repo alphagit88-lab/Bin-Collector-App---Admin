@@ -10,6 +10,7 @@ interface User {
   phone: string;
   email?: string;
   role: 'admin' | 'customer' | 'supplier';
+   supplierType?: 'commercial' | 'residential' | 'commercial_residential' | null;
 }
 
 interface AuthContextType {
@@ -17,7 +18,14 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (phone: string, password: string) => Promise<{ success: boolean; message?: string }>;
-  signup: (name: string, phone: string, email: string | undefined, role: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  signup: (
+    name: string,
+    phone: string,
+    email: string | undefined,
+    role: string,
+    password: string,
+    supplierType?: 'commercial' | 'residential' | 'commercial_residential'
+  ) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
 }
 
@@ -87,7 +95,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     phone: string,
     email: string | undefined,
     role: string,
-    password: string
+    password: string,
+    supplierType?: 'commercial' | 'residential' | 'commercial_residential'
   ) => {
     try {
       const response = await api.post<{ user: User; token: string }>('/auth/signup', {
@@ -96,6 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         role,
         password,
+        supplierType,
       });
 
       if (response.success && response.data) {

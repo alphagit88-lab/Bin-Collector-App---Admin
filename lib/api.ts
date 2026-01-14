@@ -18,9 +18,10 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const token = this.getAuthToken();
-    const headers: HeadersInit = {
+    // Use a plain record so we can safely assign Authorization
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string> | undefined),
     };
 
     if (token) {

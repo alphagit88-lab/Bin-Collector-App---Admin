@@ -11,6 +11,7 @@ export default function SignupPage() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('customer');
+  const [supplierType, setSupplierType] = useState<'commercial' | 'residential' | 'commercial_residential' | ''>('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,9 +45,22 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (role === 'supplier' && !supplierType) {
+      setError('Please select supplier type');
+      return;
+    }
+
     setLoading(true);
 
-    const result = await signup(name, phone, email || undefined, role, password);
+    const result = await signup(
+      name,
+      phone,
+      email || undefined,
+      role,
+      password,
+      role === 'supplier' ? supplierType || undefined : undefined
+    );
     setLoading(false);
 
     if (result.success) {
@@ -136,7 +150,12 @@ export default function SignupPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setRole('supplier')}
+                onClick={() => {
+                  setRole('supplier');
+                  if (!supplierType) {
+                    setSupplierType('commercial');
+                  }
+                }}
                 className={`h-10 rounded-md border text-sm font-medium transition-colors cursor-pointer ${
                   role === 'supplier'
                     ? 'bg-[#10B981] text-white border-[#10B981]'
@@ -150,6 +169,50 @@ export default function SignupPage() {
               Admin accounts can only be created by existing administrators
             </p>
           </div>
+
+          {role === 'supplier' && (
+            <div>
+              <label className="block text-sm font-medium text-black mb-2">
+                Supplier Type <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSupplierType('commercial')}
+                  className={`h-10 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
+                    supplierType === 'commercial'
+                      ? 'bg-[#10B981] text-white border-[#10B981]'
+                      : 'bg-white text-black border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  Commercial
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSupplierType('residential')}
+                  className={`h-10 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
+                    supplierType === 'residential'
+                      ? 'bg-[#10B981] text-white border-[#10B981]'
+                      : 'bg-white text-black border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  Residential
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSupplierType('commercial_residential')}
+                  className={`h-10 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
+                    supplierType === 'commercial_residential'
+                      ? 'bg-[#10B981] text-white border-[#10B981]'
+                      : 'bg-white text-black border-gray-300 hover:border-gray-400'
+                  }`}
+                  style={{ whiteSpace: 'normal', wordWrap: 'break-word', lineHeight: '1.2' }}
+                >
+                  Commercial / Residential
+                </button>
+              </div>
+            </div>
+          )}
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-black mb-2">

@@ -11,6 +11,7 @@ interface Supplier {
   phone: string;
   email?: string;
   role: 'supplier';
+  supplierType?: 'commercial' | 'residential' | 'commercial_residential' | null;
   created_at: string;
 }
 
@@ -26,6 +27,7 @@ export default function SuppliersPage() {
     phone: '',
     email: '',
     password: '',
+    supplierType: 'commercial' as 'commercial' | 'residential' | 'commercial_residential',
   });
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export default function SuppliersPage() {
 
   const handleCreate = () => {
     setEditingSupplier(null);
-    setFormData({ name: '', phone: '', email: '', password: '' });
+    setFormData({ name: '', phone: '', email: '', password: '', supplierType: 'commercial' });
     setShowModal(true);
   };
 
@@ -56,6 +58,7 @@ export default function SuppliersPage() {
       phone: supplier.phone,
       email: supplier.email || '',
       password: '',
+      supplierType: (supplier.supplierType as any) || 'commercial',
     });
     setShowModal(true);
   };
@@ -79,6 +82,7 @@ export default function SuppliersPage() {
       const response = await api.put<{ user: Supplier }>(`/admin/users/${editingSupplier.id}`, {
         name: formData.name,
         email: formData.email || undefined,
+        supplierType: formData.supplierType,
       });
 
       if (response.success) {
@@ -100,6 +104,7 @@ export default function SuppliersPage() {
         email: formData.email || undefined,
         role: 'supplier',
         password: formData.password,
+        supplierType: formData.supplierType,
       });
 
       if (response.success) {
@@ -143,6 +148,7 @@ export default function SuppliersPage() {
                 <th>Name</th>
                 <th>Phone</th>
                 <th>Email</th>
+                <th>Type</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -160,6 +166,15 @@ export default function SuppliersPage() {
                     <td style={{ fontWeight: 500 }}>{supplier.name}</td>
                     <td>{supplier.phone}</td>
                     <td>{supplier.email || '-'}</td>
+                    <td style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                      {supplier.supplierType === 'commercial'
+                        ? 'Commercial'
+                        : supplier.supplierType === 'residential'
+                        ? 'Residential'
+                        : supplier.supplierType === 'commercial_residential'
+                        ? 'Commercial / Residential'
+                        : '-'}
+                    </td>
                     <td>{new Date(supplier.created_at).toLocaleDateString()}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -253,6 +268,34 @@ export default function SuppliersPage() {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Supplier Type *</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${formData.supplierType === 'commercial' ? 'btn-primary' : 'btn-outline'} cursor-pointer`}
+                      onClick={() => setFormData({ ...formData, supplierType: 'commercial' })}
+                    >
+                      Commercial
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${formData.supplierType === 'residential' ? 'btn-primary' : 'btn-outline'} cursor-pointer`}
+                      onClick={() => setFormData({ ...formData, supplierType: 'residential' })}
+                    >
+                      Residential
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${formData.supplierType === 'commercial_residential' ? 'btn-primary' : 'btn-outline'} cursor-pointer`}
+                      onClick={() => setFormData({ ...formData, supplierType: 'commercial_residential' })}
+                      style={{ whiteSpace: 'normal', wordWrap: 'break-word', lineHeight: '1.2' }}
+                    >
+                      Commercial / Residential
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
