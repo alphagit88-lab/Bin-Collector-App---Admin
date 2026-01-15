@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
+import { SocketProvider } from "@/contexts/SocketContext";
 import FontAwesomeLoader from "@/components/FontAwesomeLoader";
 
 const poppins = Poppins({
@@ -27,7 +28,9 @@ export default function RootLayout({
         <FontAwesomeLoader />
         <ToastProvider>
           <AuthProvider>
-            {children}
+            <SocketProvider>
+              {children}
+            </SocketProvider>
           </AuthProvider>
         </ToastProvider>
       </body>

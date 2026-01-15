@@ -20,8 +20,18 @@ export default function DashboardPage() {
       return;
     }
 
+    // Redirect customers and suppliers to mobile pages
+    if (user?.role === 'customer') {
+      router.push('/mobile/customer/orders');
+      return;
+    }
+    if (user?.role === 'supplier') {
+      router.push('/mobile/supplier/notifications');
+      return;
+    }
+
     loadStats();
-  }, [authLoading, user]);
+  }, [authLoading, user, router]);
 
   const loadStats = async () => {
     try {
