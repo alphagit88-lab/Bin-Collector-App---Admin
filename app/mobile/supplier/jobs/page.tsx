@@ -91,19 +91,34 @@ export default function SupplierJobsPage() {
       case 'accepted': return '#10B981';
       case 'confirmed': return '#10B981';
       case 'in_progress': return '#6366F1';
+      case 'loaded': return '#8B5CF6';
+      case 'delivered': return '#F59E0B';
+      case 'ready_to_pickup': return '#EC4899';
+      case 'picked_up': return '#14B8A6';
       case 'completed': return '#059669';
+      case 'cancelled': return '#EF4444';
       default: return '#6B7280';
     }
   };
 
   const getNextStatus = (currentStatus: string) => {
-    const statusFlow = {
+    const statusFlow: Record<string, string> = {
       'quoted': 'accepted',
       'accepted': 'confirmed',
       'confirmed': 'in_progress',
-      'in_progress': 'completed',
+      'in_progress': 'loaded',
+      'loaded': 'delivered',
+      'delivered': 'ready_to_pickup',
+      'ready_to_pickup': 'picked_up',
+      'picked_up': 'completed',
     };
-    return statusFlow[currentStatus as keyof typeof statusFlow] || null;
+    return statusFlow[currentStatus] || null;
+  };
+
+  const formatStatus = (status: string) => {
+    return status.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
   };
 
   if (loading) {
@@ -197,6 +212,62 @@ export default function SupplierJobsPage() {
           In Progress
         </button>
         <button
+          onClick={() => setFilterStatus('loaded')}
+          style={{
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            border: 'none',
+            backgroundColor: filterStatus === 'loaded' ? '#10B981' : 'white',
+            color: filterStatus === 'loaded' ? 'white' : '#333',
+            cursor: 'pointer',
+            fontWeight: 500
+          }}
+        >
+          Loaded
+        </button>
+        <button
+          onClick={() => setFilterStatus('delivered')}
+          style={{
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            border: 'none',
+            backgroundColor: filterStatus === 'delivered' ? '#10B981' : 'white',
+            color: filterStatus === 'delivered' ? 'white' : '#333',
+            cursor: 'pointer',
+            fontWeight: 500
+          }}
+        >
+          Delivered
+        </button>
+        <button
+          onClick={() => setFilterStatus('ready_to_pickup')}
+          style={{
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            border: 'none',
+            backgroundColor: filterStatus === 'ready_to_pickup' ? '#10B981' : 'white',
+            color: filterStatus === 'ready_to_pickup' ? 'white' : '#333',
+            cursor: 'pointer',
+            fontWeight: 500
+          }}
+        >
+          Ready to Pickup
+        </button>
+        <button
+          onClick={() => setFilterStatus('picked_up')}
+          style={{
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            border: 'none',
+            backgroundColor: filterStatus === 'picked_up' ? '#10B981' : 'white',
+            color: filterStatus === 'picked_up' ? 'white' : '#333',
+            cursor: 'pointer',
+            fontWeight: 500
+          }}
+        >
+          Picked Up
+        </button>
+        <button
           onClick={() => setFilterStatus('completed')}
           style={{
             padding: '0.5rem 1rem',
@@ -253,7 +324,7 @@ export default function SupplierJobsPage() {
                     backgroundColor: getStatusColor(request.status) + '20',
                     color: getStatusColor(request.status)
                   }}>
-                    {request.status.replace('_', ' ').toUpperCase()}
+                    {formatStatus(request.status).toUpperCase()}
                   </span>
                 </div>
                 <div style={{ fontSize: '0.875rem', color: '#6B7280', marginTop: '0.5rem' }}>
@@ -290,10 +361,10 @@ export default function SupplierJobsPage() {
                       borderRadius: '8px',
                       fontWeight: 600,
                       cursor: 'pointer',
-                      textTransform: 'capitalize'
-                    }}
+                    textTransform: 'capitalize'
+                  }}
                   >
-                    Mark as {nextStatus.replace('_', ' ')}
+                    Mark as {formatStatus(nextStatus)}
                   </button>
                 )}
               </div>

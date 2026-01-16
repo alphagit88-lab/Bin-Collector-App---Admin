@@ -66,6 +66,14 @@ export default function BookingsPage() {
         return 'badge badge-admin';
       case 'in_progress':
         return 'badge badge-customer';
+      case 'loaded':
+        return 'badge badge-customer';
+      case 'delivered':
+        return 'badge badge-customer';
+      case 'ready_to_pickup':
+        return 'badge badge-customer';
+      case 'picked_up':
+        return 'badge badge-customer';
       case 'completed':
         return 'badge badge-admin';
       case 'cancelled':
@@ -137,6 +145,30 @@ export default function BookingsPage() {
             onClick={() => setFilterStatus('in_progress')}
           >
             In Progress
+          </button>
+          <button
+            className={`btn btn-sm cursor-pointer ${filterStatus === 'loaded' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setFilterStatus('loaded')}
+          >
+            Loaded
+          </button>
+          <button
+            className={`btn btn-sm cursor-pointer ${filterStatus === 'delivered' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setFilterStatus('delivered')}
+          >
+            Delivered
+          </button>
+          <button
+            className={`btn btn-sm cursor-pointer ${filterStatus === 'ready_to_pickup' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setFilterStatus('ready_to_pickup')}
+          >
+            Ready to Pickup
+          </button>
+          <button
+            className={`btn btn-sm cursor-pointer ${filterStatus === 'picked_up' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setFilterStatus('picked_up')}
+          >
+            Picked Up
           </button>
           <button
             className={`btn btn-sm cursor-pointer ${filterStatus === 'completed' ? 'btn-primary' : 'btn-outline'}`}

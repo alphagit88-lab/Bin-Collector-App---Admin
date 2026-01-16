@@ -70,9 +70,9 @@ export default function DashboardPage() {
           {user?.role === 'admin' && (
             <>
               <Link href="/dashboard/users" className="dashboard-card rounded-lg p-6 cursor-pointer">
-                <p className="text-sm mb-3 font-light" style={{ color: 'var(--color-text-secondary)' }}>Total Users</p>
-                <p className="text-5xl font-bold" style={{ color: '#10B981' }}>{stats.totalUsers}</p>
-              </Link>
+              <p className="text-sm mb-3 font-light" style={{ color: 'var(--color-text-secondary)' }}>Total Users</p>
+              <p className="text-5xl font-bold" style={{ color: '#10B981' }}>{stats.totalUsers}</p>
+            </Link>
               <Link href="/dashboard/bins" className="dashboard-card rounded-lg p-6 cursor-pointer">
                 <p className="text-sm mb-3 font-light" style={{ color: 'var(--color-text-secondary)' }}>Bin Management</p>
                 <p className="text-2xl font-bold" style={{ color: '#10B981' }}>Configure</p>

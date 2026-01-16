@@ -48,13 +48,25 @@ export default function CustomerMobileLayout({
         maxWidth: '500px',
         margin: '0 auto'
       }}>
-        <Link href="/mobile/customer/orders" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: '#6B7280' }}>
-          <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>📋</div>
-          <div style={{ fontSize: '0.75rem' }}>Orders</div>
+        <Link href="/mobile/customer/dashboard" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: '#6B7280' }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>🏠</div>
+          <div style={{ fontSize: '0.75rem' }}>Dashboard</div>
         </Link>
         <Link href="/mobile/customer/order" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: '#6B7280' }}>
           <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>➕</div>
-          <div style={{ fontSize: '0.75rem' }}>New Order</div>
+          <div style={{ fontSize: '0.75rem' }}>Order Bin</div>
+        </Link>
+        <Link href="/mobile/customer/orders" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: '#6B7280' }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>📋</div>
+          <div style={{ fontSize: '0.75rem' }}>My Bookings</div>
+        </Link>
+        <Link href="/mobile/customer/tracking" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: '#6B7280' }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>📍</div>
+          <div style={{ fontSize: '0.75rem' }}>Tracking</div>
+        </Link>
+        <Link href="/mobile/customer/account" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: '#6B7280' }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>👤</div>
+          <div style={{ fontSize: '0.75rem' }}>Account</div>
         </Link>
       </nav>
     </div>

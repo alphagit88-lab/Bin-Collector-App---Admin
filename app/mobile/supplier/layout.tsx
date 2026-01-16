@@ -79,6 +79,14 @@ export default function SupplierMobileLayout({
         maxWidth: '500px',
         margin: '0 auto'
       }}>
+        <Link href="/mobile/supplier/dashboard" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: '#6B7280' }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>🏠</div>
+          <div style={{ fontSize: '0.75rem' }}>Dashboard</div>
+        </Link>
+        <Link href="/mobile/supplier/fleet" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: '#6B7280' }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>🚛</div>
+          <div style={{ fontSize: '0.75rem' }}>Fleet</div>
+        </Link>
         <Link href="/mobile/supplier/notifications" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: '#6B7280', position: 'relative' }}>
           <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem', position: 'relative' }}>
             🔔
@@ -108,9 +116,9 @@ export default function SupplierMobileLayout({
           <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>📋</div>
           <div style={{ fontSize: '0.75rem' }}>Jobs</div>
         </Link>
-        <Link href="/mobile/supplier/wallet" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: '#6B7280' }}>
-          <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>💰</div>
-          <div style={{ fontSize: '0.75rem' }}>Wallet</div>
+        <Link href="/mobile/supplier/account" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textDecoration: 'none', color: '#6B7280' }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>👤</div>
+          <div style={{ fontSize: '0.75rem' }}>Account</div>
         </Link>
       </nav>
     </div>
