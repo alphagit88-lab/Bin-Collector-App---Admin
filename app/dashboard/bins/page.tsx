@@ -34,6 +34,7 @@ interface PhysicalBin {
   customer_phone?: string;
   status: string;
   request_id?: string;
+  current_location?: string;
   notes?: string;
 }
 
@@ -451,6 +452,7 @@ export default function BinsPage() {
                     <th>Status</th>
                     <th>Supplier</th>
                     <th>Current Customer</th>
+                    <th>Current Location</th>
                     <th>Request ID</th>
                     <th>Actions</th>
                   </tr>
@@ -482,6 +484,9 @@ export default function BinsPage() {
                         </td>
                         <td>{bin.supplier_name || '-'}</td>
                         <td>{bin.customer_name || '-'}</td>
+                        <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {bin.current_location || '-'}
+                        </td>
                         <td>{bin.request_id || '-'}</td>
                         <td>
                           <button
