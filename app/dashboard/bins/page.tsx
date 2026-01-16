@@ -95,7 +95,7 @@ export default function BinsPage() {
       const [typesResponse, sizesResponse, binsResponse, suppliersResponse] = await Promise.all([
         api.get<{ binTypes: BinType[] }>('/bins/types?includeInactive=true'),
         api.get<{ binSizes: BinSize[] }>('/bins/sizes?includeInactive=true'),
-        api.get<{ bins: PhysicalBin[] }>('/bins/physical'),
+        api.get<any>('/bins/physical'), // Backend returns { success: true, bins: [...] } directly
         api.get<{ users: { id: number; name: string; phone: string }[] }>('/admin/users/supplier'),
       ]);
 
@@ -107,7 +107,7 @@ export default function BinsPage() {
       }
       if (binsResponse.success) {
         // Backend returns: { success: true, bins: [...] }
-        const bins = binsResponse.bins || binsResponse.data?.bins || [];
+        const bins = (binsResponse as any).bins || binsResponse.data?.bins || [];
         setPhysicalBins(bins);
         console.log('Fetched bins:', bins);
       } else {
