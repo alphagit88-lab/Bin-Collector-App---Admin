@@ -28,7 +28,7 @@ export default function CustomerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     activeBookings: 0,
-    pendingQuotes: 0,
+    pendingOrders: 0,
     completed: 0,
   });
 
@@ -40,8 +40,8 @@ export default function CustomerDashboardPage() {
     fetchData();
 
     if (socket) {
-      socket.on('new_quote', (data) => {
-        showToast('New quote received!', 'success');
+      socket.on('request_accepted', (data) => {
+        showToast('Order confirmed!', 'success');
         fetchData();
       });
 
@@ -50,7 +50,7 @@ export default function CustomerDashboardPage() {
       });
 
       return () => {
-        socket.off('new_quote');
+        socket.off('request_accepted');
         socket.off('request_status_updated');
       };
     }
@@ -66,8 +66,8 @@ export default function CustomerDashboardPage() {
 
         // Calculate stats
         setStats({
-          activeBookings: allRequests.filter(r => ['confirmed', 'loaded', 'delivered', 'ready_to_pickup', 'picked_up', 'in_progress'].includes(r.status)).length,
-          pendingQuotes: allRequests.filter(r => r.status === 'pending' || r.status === 'quoted').length,
+          activeBookings: allRequests.filter(r => ['confirmed', 'on_delivery', 'delivered', 'ready_to_pickup', 'pickup'].includes(r.status)).length,
+          pendingOrders: allRequests.filter(r => r.status === 'pending').length,
           completed: allRequests.filter(r => r.status === 'completed').length,
         });
       }
@@ -81,7 +81,6 @@ export default function CustomerDashboardPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return '#F59E0B';
-      case 'quoted': return '#3B82F6';
       case 'confirmed': return '#10B981';
       case 'loaded': return '#6366F1';
       case 'delivered': return '#8B5CF6';
@@ -142,7 +141,7 @@ export default function CustomerDashboardPage() {
             <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>Active</div>
           </div>
           <div style={{ background: 'white', padding: '16px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#F59E0B', marginBottom: '4px' }}>{stats.pendingQuotes}</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#F59E0B', marginBottom: '4px' }}>{stats.pendingOrders}</div>
             <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>Pending</div>
           </div>
           <div style={{ background: 'white', padding: '16px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>

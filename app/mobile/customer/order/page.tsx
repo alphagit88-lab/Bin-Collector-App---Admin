@@ -32,6 +32,7 @@ export default function CustomerOrderPage() {
     location: '',
     start_date: '',
     end_date: '',
+    payment_method: 'online',
   });
 
   useEffect(() => {
@@ -71,7 +72,7 @@ export default function CustomerOrderPage() {
     try {
       const response = await api.post('/bookings', formData);
       if (response.success) {
-        showToast('Order placed successfully! Waiting for supplier quotes...', 'success');
+        showToast('Order placed successfully! Suppliers will be notified.', 'success');
         router.push('/mobile/customer/orders');
       } else {
         showToast(response.message || 'Failed to place order', 'error');
@@ -235,6 +236,49 @@ export default function CustomerOrderPage() {
                 fontSize: '1rem'
               }}
             />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Payment Method *</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, payment_method: 'online' })}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid #ddd',
+                  backgroundColor: formData.payment_method === 'online' ? '#10B981' : 'white',
+                  color: formData.payment_method === 'online' ? 'white' : '#333',
+                  cursor: 'pointer',
+                  fontWeight: 500
+                }}
+              >
+                Online Payment
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, payment_method: 'cash' })}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid #ddd',
+                  backgroundColor: formData.payment_method === 'cash' ? '#10B981' : 'white',
+                  color: formData.payment_method === 'cash' ? 'white' : '#333',
+                  cursor: 'pointer',
+                  fontWeight: 500
+                }}
+              >
+                Cash on Delivery
+              </button>
+            </div>
+            <p style={{ fontSize: '0.875rem', color: '#6B7280', marginTop: '0.5rem' }}>
+              {formData.payment_method === 'online' 
+                ? 'Payment will be processed when order is confirmed'
+                : 'Payment will be collected when bin is delivered'}
+            </p>
           </div>
 
           <button

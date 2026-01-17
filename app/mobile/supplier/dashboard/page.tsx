@@ -52,14 +52,14 @@ export default function SupplierDashboardPage() {
         fetchData();
       });
 
-      socket.on('quote_accepted', (data) => {
-        showToast('Quote accepted!', 'success');
+      socket.on('request_accepted', (data) => {
+        showToast('Request accepted!', 'success');
         fetchData();
       });
 
       return () => {
         socket.off('new_request');
-        socket.off('quote_accepted');
+        socket.off('request_accepted');
       };
     }
   }, [user, router, socket]);
@@ -78,8 +78,8 @@ export default function SupplierDashboardPage() {
         setRequests(allRequests.slice(0, 5)); // Show recent 5
 
         setStats({
-          activeJobs: allRequests.filter(r => ['confirmed', 'loaded', 'delivered', 'ready_to_pickup', 'picked_up', 'in_progress'].includes(r.status)).length,
-          pendingRequests: allRequests.filter(r => r.status === 'pending' || r.status === 'quoted').length,
+          activeJobs: allRequests.filter(r => ['confirmed', 'on_delivery', 'delivered', 'ready_to_pickup', 'pickup'].includes(r.status)).length,
+          pendingRequests: allRequests.filter(r => r.status === 'pending').length,
           completed: allRequests.filter(r => r.status === 'completed').length,
           totalBins: binsRes.success ? (binsRes.bins || binsRes.data?.bins || []).length : 0,
         });

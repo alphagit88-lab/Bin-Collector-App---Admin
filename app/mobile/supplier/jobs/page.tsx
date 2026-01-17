@@ -21,7 +21,17 @@ interface ServiceRequest {
   customer_phone: string;
   status: string;
   payment_status: string;
+  bin_id?: number;
+  bin_code?: string;
   created_at: string;
+}
+
+interface PhysicalBin {
+  id: number;
+  bin_code: string;
+  bin_type_name: string;
+  bin_size: string;
+  status: string;
 }
 
 export default function SupplierJobsPage() {
@@ -32,6 +42,10 @@ export default function SupplierJobsPage() {
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [showBinModal, setShowBinModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
+  const [availableBins, setAvailableBins] = useState<PhysicalBin[]>([]);
+  const [selectedBinCode, setSelectedBinCode] = useState<string>('');
 
   useEffect(() => {
     if (user?.role !== 'supplier') {
@@ -41,8 +55,8 @@ export default function SupplierJobsPage() {
     fetchRequests();
 
     if (socket) {
-      socket.on('quote_accepted', (data) => {
-        showToast('Quote accepted! Payment received.', 'success');
+      socket.on('request_accepted', (data) => {
+        showToast('Request accepted and confirmed!', 'success');
         fetchRequests();
       });
 
@@ -52,7 +66,7 @@ export default function SupplierJobsPage() {
       });
 
       return () => {
-        socket.off('quote_accepted');
+        socket.off('request_accepted');
         socket.off('payment_received');
       };
     }
@@ -68,10 +82,34 @@ export default function SupplierJobsPage() {
     setLoading(false);
   };
 
+  const fetchAvailableBins = async (request: ServiceRequest) => {
+    try {
+      const response = await api.get<any>(`/bins/physical?status=available&supplier_id=${user?.id}`);
+      if (response.success) {
+        const bins = (response as any).bins || response.data?.bins || [];
+        // Filter bins matching the request's bin type and size
+        const matchingBins = bins.filter((bin: any) => 
+          bin.bin_type_name === request.bin_type_name && bin.bin_size === request.bin_size
+        );
+        setAvailableBins(matchingBins);
+      }
+    } catch (error) {
+      console.error('Failed to fetch available bins:', error);
+    }
+  };
+
   const handleUpdateStatus = async (requestId: string, newStatus: string) => {
     try {
       const request = requests.find(r => r.request_id === requestId);
       if (!request) return;
+
+      // If status is on_delivery, show bin assignment modal
+      if (newStatus === 'on_delivery') {
+        setSelectedRequest(request);
+        await fetchAvailableBins(request);
+        setShowBinModal(true);
+        return;
+      }
 
       const response = await api.put(`/bookings/${request.id}/status`, { status: newStatus });
       if (response.success) {
@@ -85,16 +123,38 @@ export default function SupplierJobsPage() {
     }
   };
 
+  const handleAssignBin = async () => {
+    if (!selectedRequest || !selectedBinCode) {
+      showToast('Please select a bin', 'error');
+      return;
+    }
+
+    try {
+      const response = await api.put(`/bookings/${selectedRequest.id}/status`, { 
+        status: 'on_delivery',
+        bin_code: selectedBinCode
+      });
+      if (response.success) {
+        showToast('Bin assigned and status updated successfully', 'success');
+        setShowBinModal(false);
+        setSelectedRequest(null);
+        setSelectedBinCode('');
+        fetchRequests();
+      } else {
+        showToast(response.message || 'Failed to assign bin', 'error');
+      }
+    } catch (error) {
+      showToast('Failed to assign bin', 'error');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'quoted': return '#3B82F6';
-      case 'accepted': return '#10B981';
       case 'confirmed': return '#10B981';
-      case 'in_progress': return '#6366F1';
-      case 'loaded': return '#8B5CF6';
+      case 'on_delivery': return '#6366F1';
       case 'delivered': return '#F59E0B';
       case 'ready_to_pickup': return '#EC4899';
-      case 'picked_up': return '#14B8A6';
+      case 'pickup': return '#14B8A6';
       case 'completed': return '#059669';
       case 'cancelled': return '#EF4444';
       default: return '#6B7280';
@@ -103,14 +163,11 @@ export default function SupplierJobsPage() {
 
   const getNextStatus = (currentStatus: string) => {
     const statusFlow: Record<string, string> = {
-      'quoted': 'accepted',
-      'accepted': 'confirmed',
-      'confirmed': 'in_progress',
-      'in_progress': 'loaded',
-      'loaded': 'delivered',
+      'confirmed': 'on_delivery',
+      'on_delivery': 'delivered',
       'delivered': 'ready_to_pickup',
-      'ready_to_pickup': 'picked_up',
-      'picked_up': 'completed',
+      'ready_to_pickup': 'pickup',
+      'pickup': 'completed',
     };
     return statusFlow[currentStatus] || null;
   };
@@ -170,20 +227,6 @@ export default function SupplierJobsPage() {
           All
         </button>
         <button
-          onClick={() => setFilterStatus('quoted')}
-          style={{
-            padding: '0.5rem 1rem',
-            borderRadius: '8px',
-            border: 'none',
-            backgroundColor: filterStatus === 'quoted' ? '#10B981' : 'white',
-            color: filterStatus === 'quoted' ? 'white' : '#333',
-            cursor: 'pointer',
-            fontWeight: 500
-          }}
-        >
-          Quoted
-        </button>
-        <button
           onClick={() => setFilterStatus('confirmed')}
           style={{
             padding: '0.5rem 1rem',
@@ -198,32 +241,18 @@ export default function SupplierJobsPage() {
           Confirmed
         </button>
         <button
-          onClick={() => setFilterStatus('in_progress')}
+          onClick={() => setFilterStatus('on_delivery')}
           style={{
             padding: '0.5rem 1rem',
             borderRadius: '8px',
             border: 'none',
-            backgroundColor: filterStatus === 'in_progress' ? '#10B981' : 'white',
-            color: filterStatus === 'in_progress' ? 'white' : '#333',
+            backgroundColor: filterStatus === 'on_delivery' ? '#10B981' : 'white',
+            color: filterStatus === 'on_delivery' ? 'white' : '#333',
             cursor: 'pointer',
             fontWeight: 500
           }}
         >
-          In Progress
-        </button>
-        <button
-          onClick={() => setFilterStatus('loaded')}
-          style={{
-            padding: '0.5rem 1rem',
-            borderRadius: '8px',
-            border: 'none',
-            backgroundColor: filterStatus === 'loaded' ? '#10B981' : 'white',
-            color: filterStatus === 'loaded' ? 'white' : '#333',
-            cursor: 'pointer',
-            fontWeight: 500
-          }}
-        >
-          Loaded
+          On Delivery
         </button>
         <button
           onClick={() => setFilterStatus('delivered')}
@@ -254,18 +283,18 @@ export default function SupplierJobsPage() {
           Ready to Pickup
         </button>
         <button
-          onClick={() => setFilterStatus('picked_up')}
+          onClick={() => setFilterStatus('pickup')}
           style={{
             padding: '0.5rem 1rem',
             borderRadius: '8px',
             border: 'none',
-            backgroundColor: filterStatus === 'picked_up' ? '#10B981' : 'white',
-            color: filterStatus === 'picked_up' ? 'white' : '#333',
+            backgroundColor: filterStatus === 'pickup' ? '#10B981' : 'white',
+            color: filterStatus === 'pickup' ? 'white' : '#333',
             cursor: 'pointer',
             fontWeight: 500
           }}
         >
-          Picked Up
+          Pickup
         </button>
         <button
           onClick={() => setFilterStatus('completed')}
@@ -349,6 +378,19 @@ export default function SupplierJobsPage() {
                     ✓ Payment Received
                   </div>
                 )}
+                {request.bin_code && (
+                  <div style={{ 
+                    padding: '0.5rem', 
+                    backgroundColor: '#F3F4F6', 
+                    borderRadius: '6px',
+                    marginBottom: '0.75rem',
+                    fontSize: '0.875rem',
+                    color: '#374151',
+                    fontWeight: 500
+                  }}>
+                    📦 Bin: {request.bin_code}
+                  </div>
+                )}
                 {nextStatus && (
                   <button
                     onClick={() => handleUpdateStatus(request.request_id, nextStatus)}
@@ -364,12 +406,118 @@ export default function SupplierJobsPage() {
                     textTransform: 'capitalize'
                   }}
                   >
-                    Mark as {formatStatus(nextStatus)}
+                    {nextStatus === 'on_delivery' ? 'Assign Bin & Mark On Delivery' : `Mark as ${formatStatus(nextStatus)}`}
                   </button>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Bin Assignment Modal */}
+      {showBinModal && selectedRequest && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            maxWidth: '400px',
+            width: '100%',
+            maxHeight: '80vh',
+            overflowY: 'auto'
+          }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>
+              Assign Bin to Order
+            </h2>
+            <p style={{ fontSize: '0.875rem', color: '#6B7280', marginBottom: '1rem' }}>
+              Select an available bin for this order. You can only assign bins registered under your name.
+            </p>
+            
+            {availableBins.length === 0 ? (
+              <div style={{ 
+                padding: '2rem', 
+                textAlign: 'center', 
+                color: '#6B7280' 
+              }}>
+                No available bins matching this order's requirements
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                {availableBins.map((bin) => (
+                  <button
+                    key={bin.id}
+                    type="button"
+                    onClick={() => setSelectedBinCode(bin.bin_code)}
+                    style={{
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '2px solid',
+                      borderColor: selectedBinCode === bin.bin_code ? '#10B981' : '#E5E7EB',
+                      backgroundColor: selectedBinCode === bin.bin_code ? '#10B98120' : 'white',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <div style={{ fontWeight: 600 }}>{bin.bin_code}</div>
+                    <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+                      {bin.bin_type_name} - {bin.bin_size}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => {
+                  setShowBinModal(false);
+                  setSelectedRequest(null);
+                  setSelectedBinCode('');
+                }}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid #E5E7EB',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAssignBin}
+                disabled={!selectedBinCode || availableBins.length === 0}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: selectedBinCode ? '#10B981' : '#D1D5DB',
+                  color: 'white',
+                  fontWeight: 600,
+                  cursor: selectedBinCode ? 'pointer' : 'not-allowed'
+                }}
+              >
+                Assign & Continue
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

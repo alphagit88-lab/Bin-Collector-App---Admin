@@ -23,16 +23,14 @@ interface ServiceRequest {
   created_at: string;
 }
 
+// Order statuses only (not bin statuses)
 const statusSteps = [
   { key: 'pending', label: 'Pending', icon: '⏳' },
-  { key: 'quoted', label: 'Quoted', icon: '💬' },
-  { key: 'accepted', label: 'Accepted', icon: '✅' },
   { key: 'confirmed', label: 'Confirmed', icon: '✅' },
-  { key: 'in_progress', label: 'In Progress', icon: '🔄' },
-  { key: 'loaded', label: 'Loaded', icon: '🚚' },
+  { key: 'on_delivery', label: 'On Delivery', icon: '🚚' },
   { key: 'delivered', label: 'Delivered', icon: '📦' },
   { key: 'ready_to_pickup', label: 'Ready to Pickup', icon: '🔄' },
-  { key: 'picked_up', label: 'Picked Up', icon: '✅' },
+  { key: 'pickup', label: 'Pickup', icon: '📥' },
   { key: 'completed', label: 'Completed', icon: '🎉' },
 ];
 

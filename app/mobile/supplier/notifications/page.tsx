@@ -30,6 +30,9 @@ export default function SupplierNotificationsPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
+  const [totalPrice, setTotalPrice] = useState<string>('');
 
   useEffect(() => {
     if (user?.role !== 'supplier') {
@@ -61,15 +64,32 @@ export default function SupplierNotificationsPage() {
     setLoading(false);
   };
 
-  const handleAccept = async (requestId: string) => {
-    try {
-      const request = requests.find(r => r.request_id === requestId);
-      if (!request) return;
+  const handleAcceptClick = (requestId: string) => {
+    const request = requests.find(r => r.request_id === requestId);
+    if (request) {
+      setSelectedRequest(request);
+      setTotalPrice('');
+      setShowAcceptModal(true);
+    }
+  };
 
-      const response = await api.post(`/bookings/${request.id}/accept`);
+  const handleAccept = async () => {
+    if (!selectedRequest || !totalPrice || parseFloat(totalPrice) <= 0) {
+      showToast('Please enter a valid price', 'error');
+      return;
+    }
+
+    try {
+      const response = await api.post(`/bookings/${selectedRequest.id}/accept`, {
+        total_price: parseFloat(totalPrice)
+      });
       if (response.success) {
-        showToast('Request accepted! Please submit your quote.', 'success');
-        router.push(`/mobile/supplier/quote/${request.id}`);
+        showToast('Request accepted and confirmed!', 'success');
+        setShowAcceptModal(false);
+        setSelectedRequest(null);
+        setTotalPrice('');
+        fetchPendingRequests();
+        router.push('/mobile/supplier/jobs');
       } else {
         showToast(response.message || 'Failed to accept request', 'error');
       }
@@ -163,7 +183,7 @@ export default function SupplierNotificationsPage() {
                 📅 {new Date(request.start_date).toLocaleDateString()} - {new Date(request.end_date).toLocaleDateString()}
               </div>
               <button
-                onClick={() => handleAccept(request.request_id)}
+                onClick={() => handleAcceptClick(request.request_id)}
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -175,10 +195,98 @@ export default function SupplierNotificationsPage() {
                   cursor: 'pointer'
                 }}
               >
-                Accept & Quote
+                Accept Order
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Accept Modal */}
+      {showAcceptModal && selectedRequest && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            maxWidth: '400px',
+            width: '100%'
+          }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>
+              Accept Order
+            </h2>
+            <p style={{ fontSize: '0.875rem', color: '#6B7280', marginBottom: '1rem' }}>
+              Enter the total price for this order. The order will be confirmed immediately.
+            </p>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 500 }}>
+                Total Price ($)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={totalPrice}
+                onChange={(e) => setTotalPrice(e.target.value)}
+                placeholder="Enter price"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid #E5E7EB',
+                  fontSize: '1rem'
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => {
+                  setShowAcceptModal(false);
+                  setSelectedRequest(null);
+                  setTotalPrice('');
+                }}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid #E5E7EB',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAccept}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: '#10B981',
+                  color: 'white',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Accept & Confirm
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

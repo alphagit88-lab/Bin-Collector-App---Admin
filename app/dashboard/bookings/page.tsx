@@ -58,21 +58,15 @@ export default function BookingsPage() {
     switch (status) {
       case 'pending':
         return 'badge badge-supplier';
-      case 'quoted':
-        return 'badge badge-customer';
-      case 'accepted':
-        return 'badge badge-customer';
       case 'confirmed':
         return 'badge badge-admin';
-      case 'in_progress':
-        return 'badge badge-customer';
-      case 'loaded':
+      case 'on_delivery':
         return 'badge badge-customer';
       case 'delivered':
         return 'badge badge-customer';
       case 'ready_to_pickup':
         return 'badge badge-customer';
-      case 'picked_up':
+      case 'pickup':
         return 'badge badge-customer';
       case 'completed':
         return 'badge badge-admin';
@@ -129,28 +123,16 @@ export default function BookingsPage() {
             Pending
           </button>
           <button
-            className={`btn btn-sm cursor-pointer ${filterStatus === 'quoted' ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => setFilterStatus('quoted')}
-          >
-            Quoted
-          </button>
-          <button
             className={`btn btn-sm cursor-pointer ${filterStatus === 'confirmed' ? 'btn-primary' : 'btn-outline'}`}
             onClick={() => setFilterStatus('confirmed')}
           >
             Confirmed
           </button>
           <button
-            className={`btn btn-sm cursor-pointer ${filterStatus === 'in_progress' ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => setFilterStatus('in_progress')}
+            className={`btn btn-sm cursor-pointer ${filterStatus === 'on_delivery' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setFilterStatus('on_delivery')}
           >
-            In Progress
-          </button>
-          <button
-            className={`btn btn-sm cursor-pointer ${filterStatus === 'loaded' ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => setFilterStatus('loaded')}
-          >
-            Loaded
+            On Delivery
           </button>
           <button
             className={`btn btn-sm cursor-pointer ${filterStatus === 'delivered' ? 'btn-primary' : 'btn-outline'}`}
@@ -165,10 +147,10 @@ export default function BookingsPage() {
             Ready to Pickup
           </button>
           <button
-            className={`btn btn-sm cursor-pointer ${filterStatus === 'picked_up' ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => setFilterStatus('picked_up')}
+            className={`btn btn-sm cursor-pointer ${filterStatus === 'pickup' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setFilterStatus('pickup')}
           >
-            Picked Up
+            Pickup
           </button>
           <button
             className={`btn btn-sm cursor-pointer ${filterStatus === 'completed' ? 'btn-primary' : 'btn-outline'}`}

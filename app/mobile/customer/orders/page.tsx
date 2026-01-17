@@ -38,8 +38,8 @@ export default function CustomerOrdersPage() {
     fetchRequests();
 
     if (socket) {
-      socket.on('new_quote', (data) => {
-        showToast('New quote received!', 'success');
+      socket.on('request_accepted', (data) => {
+        showToast('Order confirmed!', 'success');
         fetchRequests();
       });
 
@@ -48,7 +48,7 @@ export default function CustomerOrdersPage() {
       });
 
       return () => {
-        socket.off('new_quote');
+        socket.off('request_accepted');
         socket.off('request_status_updated');
       };
     }
@@ -66,10 +66,11 @@ export default function CustomerOrdersPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return '#F59E0B';
-      case 'quoted': return '#3B82F6';
-      case 'accepted': return '#10B981';
       case 'confirmed': return '#10B981';
-      case 'in_progress': return '#6366F1';
+      case 'on_delivery': return '#6366F1';
+      case 'delivered': return '#F59E0B';
+      case 'ready_to_pickup': return '#EC4899';
+      case 'pickup': return '#14B8A6';
       case 'completed': return '#059669';
       default: return '#6B7280';
     }
