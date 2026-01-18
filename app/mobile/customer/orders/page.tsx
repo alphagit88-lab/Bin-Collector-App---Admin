@@ -20,6 +20,7 @@ interface ServiceRequest {
   status: string;
   payment_status: string;
   created_at: string;
+  order_items_count?: number;
 }
 
 export default function CustomerOrdersPage() {
@@ -150,7 +151,14 @@ export default function CustomerOrdersPage() {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
                 <div>
-                  <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{request.bin_type_name} - {request.bin_size}</div>
+                  <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                    {request.bin_type_name} - {request.bin_size}
+                    {request.order_items_count && request.order_items_count > 1 && (
+                      <span style={{ color: '#6B7280', fontWeight: 400, marginLeft: '0.5rem' }}>
+                        + more {request.order_items_count - 1}
+                      </span>
+                    )}
+                  </div>
                   <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>{request.request_id}</div>
                 </div>
                 <span style={{
@@ -161,7 +169,7 @@ export default function CustomerOrdersPage() {
                   backgroundColor: getStatusColor(request.status) + '20',
                   color: getStatusColor(request.status)
                 }}>
-                  {request.status.replace('_', ' ').toUpperCase()}
+                  {request.status.replace(/_/g, ' ').toUpperCase()}
                 </span>
               </div>
               <div style={{ fontSize: '0.875rem', color: '#6B7280', marginTop: '0.5rem' }}>

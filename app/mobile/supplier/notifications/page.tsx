@@ -8,6 +8,13 @@ import { useSocket } from '@/contexts/SocketContext';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 
+interface OrderItem {
+  id: number;
+  bin_type_name: string;
+  bin_size: string;
+  status: string;
+}
+
 interface ServiceRequest {
   id: number;
   request_id: string;
@@ -21,6 +28,8 @@ interface ServiceRequest {
   customer_phone: string;
   status: string;
   created_at: string;
+  order_items_count?: number;
+  orderItems?: OrderItem[];
 }
 
 export default function SupplierNotificationsPage() {
@@ -158,9 +167,13 @@ export default function SupplierNotificationsPage() {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <div>
-                  <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{request.bin_type_name} - {request.bin_size}</div>
-                  <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>{request.request_id}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                    Request #{request.request_id}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#6B7280', marginBottom: '0.75rem' }}>
+                    {request.service_category === 'residential' ? '🏠 Residential' : '🏢 Commercial'}
+                  </div>
                 </div>
                 <span style={{
                   padding: '0.25rem 0.75rem',
@@ -168,11 +181,53 @@ export default function SupplierNotificationsPage() {
                   fontSize: '0.75rem',
                   fontWeight: 500,
                   backgroundColor: '#F59E0B20',
-                  color: '#F59E0B'
+                  color: '#F59E0B',
+                  height: 'fit-content'
                 }}>
                   NEW
                 </span>
               </div>
+
+              {/* Requested Bins */}
+              <div style={{ 
+                backgroundColor: '#F9FAFB', 
+                borderRadius: '8px', 
+                padding: '0.75rem', 
+                marginBottom: '0.75rem' 
+              }}>
+                <div style={{ 
+                  fontSize: '0.75rem', 
+                  fontWeight: 600, 
+                  color: '#374151', 
+                  marginBottom: '0.5rem' 
+                }}>
+                  Requested Bins:
+                </div>
+                {request.orderItems && request.orderItems.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {request.orderItems.map((item, index) => (
+                      <div 
+                        key={item.id || index}
+                        style={{ 
+                          fontSize: '0.875rem', 
+                          color: '#111827',
+                          padding: '0.5rem',
+                          backgroundColor: 'white',
+                          borderRadius: '6px',
+                          border: '1px solid #E5E7EB'
+                        }}
+                      >
+                        {item.bin_type_name} - {item.bin_size}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+                    {request.bin_type_name} - {request.bin_size}
+                  </div>
+                )}
+              </div>
+
               <div style={{ fontSize: '0.875rem', color: '#6B7280', marginBottom: '0.5rem' }}>
                 👤 {request.customer_name} - {request.customer_phone}
               </div>
@@ -227,6 +282,43 @@ export default function SupplierNotificationsPage() {
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>
               Accept Order
             </h2>
+            
+            {/* Show requested bins in modal */}
+            {selectedRequest.orderItems && selectedRequest.orderItems.length > 0 && (
+              <div style={{ 
+                backgroundColor: '#F9FAFB', 
+                borderRadius: '8px', 
+                padding: '0.75rem', 
+                marginBottom: '1rem' 
+              }}>
+                <div style={{ 
+                  fontSize: '0.75rem', 
+                  fontWeight: 600, 
+                  color: '#374151', 
+                  marginBottom: '0.5rem' 
+                }}>
+                  Requested Bins:
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {selectedRequest.orderItems.map((item, index) => (
+                    <div 
+                      key={item.id || index}
+                      style={{ 
+                        fontSize: '0.875rem', 
+                        color: '#111827',
+                        padding: '0.5rem',
+                        backgroundColor: 'white',
+                        borderRadius: '6px',
+                        border: '1px solid #E5E7EB'
+                      }}
+                    >
+                      {item.bin_type_name} - {item.bin_size}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <p style={{ fontSize: '0.875rem', color: '#6B7280', marginBottom: '1rem' }}>
               Enter the total price for this order. The order will be confirmed immediately.
             </p>

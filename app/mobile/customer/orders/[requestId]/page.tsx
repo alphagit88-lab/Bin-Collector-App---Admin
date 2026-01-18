@@ -20,6 +20,15 @@ interface ServiceRequest {
   payment_status: string;
 }
 
+interface OrderItem {
+  id: number;
+  bin_type_name: string;
+  bin_size: string;
+  bin_code?: string;
+  status: string;
+  physical_bin_status?: string;
+}
+
 export default function OrderDetailPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -29,7 +38,9 @@ export default function OrderDetailPage() {
   const requestId = params.requestId as string;
 
   const [request, setRequest] = useState<ServiceRequest | null>(null);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [markingReady, setMarkingReady] = useState(false);
 
   useEffect(() => {
     if (user?.role !== 'customer') {
@@ -59,11 +70,49 @@ export default function OrderDetailPage() {
       if (response.success && response.data) {
         const found = response.data.requests.find(r => r.request_id === requestId);
         setRequest(found || null);
+        
+        if (found) {
+          // Fetch order items
+          const itemsResponse = await api.get<{ orderItems: OrderItem[] }>(`/bookings/${found.id}/order-items`);
+          if (itemsResponse.success && itemsResponse.data) {
+            setOrderItems(itemsResponse.data.orderItems);
+          }
+        }
       }
     } catch (error) {
       showToast('Failed to load order details', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMarkReadyToPickup = async () => {
+    if (!request) return;
+    
+    setMarkingReady(true);
+    try {
+      const response = await api.put(`/bookings/${request.id}/ready-to-pickup`);
+      if (response.success) {
+        showToast('Order marked as ready to pickup', 'success');
+        fetchData();
+      } else {
+        showToast(response.message || 'Failed to mark as ready to pickup', 'error');
+      }
+    } catch (error) {
+      showToast('Failed to mark as ready to pickup', 'error');
+    } finally {
+      setMarkingReady(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'loaded': return '#6366F1';
+      case 'delivered': return '#F59E0B';
+      case 'ready_to_pickup': return '#EC4899';
+      case 'picked_up': return '#14B8A6';
+      case 'completed': return '#059669';
+      default: return '#6B7280';
     }
   };
 
@@ -104,10 +153,42 @@ export default function OrderDetailPage() {
             <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>Order ID</div>
             <div style={{ fontWeight: 500 }}>{request.request_id}</div>
           </div>
-          <div>
-            <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>Bin Type</div>
-            <div style={{ fontWeight: 500 }}>{request.bin_type_name} - {request.bin_size}</div>
-          </div>
+          {orderItems.length > 0 ? (
+            <div>
+              <div style={{ fontSize: '0.875rem', color: '#6B7280', marginBottom: '0.5rem' }}>Bins</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {orderItems.map((item, idx) => (
+                  <div key={item.id} style={{ 
+                    padding: '0.75rem', 
+                    backgroundColor: '#F9FAFB', 
+                    borderRadius: '8px',
+                    border: '1px solid #E5E7EB'
+                  }}>
+                    <div style={{ fontWeight: 500, marginBottom: '0.25rem' }}>
+                      {item.bin_type_name} - {item.bin_size}
+                    </div>
+                    {item.bin_code && (
+                      <div style={{ fontSize: '0.75rem', color: '#6B7280', marginBottom: '0.25rem' }}>
+                        Bin Code: {item.bin_code}
+                      </div>
+                    )}
+                    <div style={{ 
+                      fontSize: '0.75rem', 
+                      color: getStatusColor(item.status),
+                      fontWeight: 500
+                    }}>
+                      Status: {item.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>Bin Type</div>
+              <div style={{ fontWeight: 500 }}>{request.bin_type_name} - {request.bin_size}</div>
+            </div>
+          )}
           <div>
             <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>Location</div>
             <div style={{ fontWeight: 500 }}>{request.location}</div>
@@ -120,7 +201,7 @@ export default function OrderDetailPage() {
           </div>
           <div>
             <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>Status</div>
-            <div style={{ fontWeight: 500, textTransform: 'capitalize' }}>{request.status.replace('_', ' ')}</div>
+            <div style={{ fontWeight: 500, textTransform: 'capitalize' }}>{request.status.replace(/_/g, ' ')}</div>
           </div>
           {request.payment_status && (
             <div>
@@ -146,6 +227,39 @@ export default function OrderDetailPage() {
           <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>
             Suppliers are reviewing your request. Your order will be confirmed once a supplier accepts it.
           </div>
+        </div>
+      )}
+
+      {request.status === 'delivered' && (
+        <div style={{ 
+          backgroundColor: 'white', 
+          borderRadius: '12px', 
+          padding: '1.5rem',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{ marginBottom: '1rem' }}>
+            <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Bins Delivered</div>
+            <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+              Once you've filled the bins, mark them as ready for pickup.
+            </div>
+          </div>
+          <button
+            onClick={handleMarkReadyToPickup}
+            disabled={markingReady}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              backgroundColor: '#10B981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: 600,
+              cursor: markingReady ? 'not-allowed' : 'pointer',
+              opacity: markingReady ? 0.6 : 1
+            }}
+          >
+            {markingReady ? 'Marking...' : 'Mark As Ready To Pickup'}
+          </button>
         </div>
       )}
     </div>

@@ -18,17 +18,22 @@ interface BinSize {
   capacity_cubic_meters: number;
 }
 
+interface OrderBin {
+  bin_type_id: string;
+  bin_size_id: string;
+  quantity: number;
+}
+
 export default function CustomerOrderPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   const [binTypes, setBinTypes] = useState<BinType[]>([]);
-  const [binSizes, setBinSizes] = useState<BinSize[]>([]);
+  const [binSizesMap, setBinSizesMap] = useState<Record<number, BinSize[]>>({});
   const [loading, setLoading] = useState(false);
+  const [bins, setBins] = useState<OrderBin[]>([{ bin_type_id: '', bin_size_id: '', quantity: 1 }]);
   const [formData, setFormData] = useState({
     service_category: 'residential',
-    bin_type_id: '',
-    bin_size_id: '',
     location: '',
     start_date: '',
     end_date: '',
@@ -44,12 +49,12 @@ export default function CustomerOrderPage() {
   }, [user, router]);
 
   useEffect(() => {
-    if (formData.bin_type_id) {
-      fetchBinSizes(parseInt(formData.bin_type_id));
-    } else {
-      setBinSizes([]);
-    }
-  }, [formData.bin_type_id]);
+    bins.forEach((bin) => {
+      if (bin.bin_type_id && !binSizesMap[parseInt(bin.bin_type_id)]) {
+        fetchBinSizes(parseInt(bin.bin_type_id));
+      }
+    });
+  }, [bins]);
 
   const fetchBinTypes = async () => {
     const response = await api.get<{ binTypes: BinType[] }>('/bins/types');
@@ -61,23 +66,68 @@ export default function CustomerOrderPage() {
   const fetchBinSizes = async (binTypeId: number) => {
     const response = await api.get<{ binSizes: BinSize[] }>(`/bins/sizes?binTypeId=${binTypeId}`);
     if (response.success && response.data) {
-      setBinSizes(response.data.binSizes);
+      setBinSizesMap((prev) => ({ ...prev, [binTypeId]: response.data.binSizes }));
     }
+  };
+
+  const addBin = () => {
+    setBins([...bins, { bin_type_id: '', bin_size_id: '', quantity: 1 }]);
+  };
+
+  const removeBin = (index: number) => {
+    if (bins.length > 1) {
+      setBins(bins.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateBin = (index: number, field: keyof OrderBin, value: string | number) => {
+    const updated = [...bins];
+    updated[index] = { ...updated[index], [field]: value };
+    if (field === 'bin_type_id') {
+      updated[index].bin_size_id = ''; // Reset size when type changes
+    }
+    setBins(updated);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (loading) {
+      return;
+    }
+    
+    // Validate bins
+    const validBins = bins.filter(b => b.bin_type_id && b.bin_size_id);
+    if (validBins.length === 0) {
+      showToast('Please add at least one bin to your order', 'error');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await api.post('/bookings', formData);
+      const payload = {
+        ...formData,
+        bins: validBins.map(b => ({
+          bin_type_id: parseInt(b.bin_type_id),
+          bin_size_id: parseInt(b.bin_size_id),
+          quantity: b.quantity || 1,
+        })),
+      };
+
+      console.log('Submitting order with bins:', payload.bins); // Debug log
+
+      const response = await api.post('/bookings', payload);
       if (response.success) {
-        showToast('Order placed successfully! Suppliers will be notified.', 'success');
+        console.log('Order created:', response.data); // Debug log
+        showToast(`Order placed successfully with ${validBins.length} bin type(s)! Suppliers will be notified.`, 'success');
         router.push('/mobile/customer/orders');
       } else {
         showToast(response.message || 'Failed to place order', 'error');
       }
     } catch (error) {
+      console.error('Order submission error:', error);
       showToast('Failed to place order', 'error');
     } finally {
       setLoading(false);
@@ -141,48 +191,123 @@ export default function CustomerOrderPage() {
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Bin Type *</label>
-            <select
-              value={formData.bin_type_id}
-              onChange={(e) => setFormData({ ...formData, bin_type_id: e.target.value, bin_size_id: '' })}
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: '8px',
-                border: '1px solid #ddd',
-                fontSize: '1rem'
-              }}
-            >
-              <option value="">Select bin type</option>
-              {binTypes.map((type) => (
-                <option key={type.id} value={type.id}>{type.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {formData.bin_type_id && (
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Bin Size *</label>
-              <select
-                value={formData.bin_size_id}
-                onChange={(e) => setFormData({ ...formData, bin_size_id: e.target.value })}
-                required
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <label style={{ fontWeight: 500 }}>Bins *</label>
+              <button
+                type="button"
+                onClick={addBin}
                 style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  borderRadius: '8px',
-                  border: '1px solid #ddd',
-                  fontSize: '1rem'
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#10B981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  fontWeight: 500
                 }}
               >
-                <option value="">Select bin size</option>
-                {binSizes.map((size) => (
-                  <option key={size.id} value={size.id}>{size.size}</option>
-                ))}
-              </select>
+                + Add Bin
+              </button>
             </div>
-          )}
+            
+            {bins.map((bin, index) => (
+              <div key={index} style={{ 
+                border: '1px solid #ddd', 
+                borderRadius: '8px', 
+                padding: '1rem', 
+                marginBottom: '0.75rem',
+                position: 'relative'
+              }}>
+                {bins.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeBin(index)}
+                    style={{
+                      position: 'absolute',
+                      top: '0.5rem',
+                      right: '0.5rem',
+                      background: '#EF4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '24px',
+                      height: '24px',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>Bin Type *</label>
+                    <select
+                      value={bin.bin_type_id}
+                      onChange={(e) => updateBin(index, 'bin_type_id', e.target.value)}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        borderRadius: '6px',
+                        border: '1px solid #ddd',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      <option value="">Select bin type</option>
+                      {binTypes.map((type) => (
+                        <option key={type.id} value={type.id}>{type.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {bin.bin_type_id && (
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>Bin Size *</label>
+                      <select
+                        value={bin.bin_size_id}
+                        onChange={(e) => updateBin(index, 'bin_size_id', e.target.value)}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem',
+                          borderRadius: '6px',
+                          border: '1px solid #ddd',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        <option value="">Select bin size</option>
+                        {binSizesMap[parseInt(bin.bin_type_id)]?.map((size) => (
+                          <option key={size.id} value={size.id}>{size.size}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>Quantity</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={bin.quantity}
+                      onChange={(e) => updateBin(index, 'quantity', parseInt(e.target.value) || 1)}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        borderRadius: '6px',
+                        border: '1px solid #ddd',
+                        fontSize: '0.875rem'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Location *</label>

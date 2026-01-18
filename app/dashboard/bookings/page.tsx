@@ -24,7 +24,9 @@ interface ServiceRequest {
   customer_phone: string;
   supplier_name: string | null;
   supplier_phone: string | null;
+  invoice_id: string | null;
   created_at: string;
+  order_items_count?: number;
 }
 
 export default function BookingsPage() {
@@ -173,13 +175,14 @@ export default function BookingsPage() {
                 <th>Dates</th>
                 <th>Status</th>
                 <th>Payment</th>
+                <th>Invoice</th>
                 <th>Created</th>
               </tr>
             </thead>
             <tbody>
               {bookings.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan={10} style={{ textAlign: 'center', padding: '2rem' }}>
                     No bookings found
                   </td>
                 </tr>
@@ -211,9 +214,13 @@ export default function BookingsPage() {
                     </td>
                     <td>
                       <div>
-                        <div style={{ fontWeight: 500 }}>{booking.bin_type_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                          {booking.bin_size}
+                        <div style={{ fontWeight: 500 }}>
+                          {booking.bin_type_name} - {booking.bin_size}
+                          {booking.order_items_count && booking.order_items_count > 1 && (
+                            <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400, marginLeft: '0.5rem' }}>
+                              + more {booking.order_items_count - 1}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -235,6 +242,25 @@ export default function BookingsPage() {
                       <span className={`badge ${booking.payment_status === 'paid' ? 'badge-admin' : 'badge-supplier'} capitalize`}>
                         {booking.payment_status || 'unpaid'}
                       </span>
+                    </td>
+                    <td>
+                      {booking.invoice_id ? (
+                        <a
+                          href={`/dashboard/invoices?invoice_id=${booking.invoice_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: '#10B981',
+                            textDecoration: 'none',
+                            fontWeight: 500,
+                            fontSize: '0.875rem'
+                          }}
+                        >
+                          {booking.invoice_id}
+                        </a>
+                      ) : (
+                        '-'
+                      )}
                     </td>
                     <td>{new Date(booking.created_at).toLocaleDateString()}</td>
                   </tr>

@@ -24,6 +24,7 @@ interface ServiceRequest {
   bin_id?: number;
   bin_code?: string;
   created_at: string;
+  order_items_count?: number;
 }
 
 interface PhysicalBin {
@@ -31,6 +32,16 @@ interface PhysicalBin {
   bin_code: string;
   bin_type_name: string;
   bin_size: string;
+  status: string;
+}
+
+interface OrderItem {
+  id: number;
+  bin_type_id: number;
+  bin_size_id: number;
+  bin_type_name: string;
+  bin_size: string;
+  physical_bin_id?: number;
   status: string;
 }
 
@@ -44,8 +55,9 @@ export default function SupplierJobsPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showBinModal, setShowBinModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
-  const [availableBins, setAvailableBins] = useState<PhysicalBin[]>([]);
-  const [selectedBinCode, setSelectedBinCode] = useState<string>('');
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [availableBinsMap, setAvailableBinsMap] = useState<Record<number, PhysicalBin[]>>({});
+  const [selectedBinCodes, setSelectedBinCodes] = useState<Record<number, string>>({});
 
   useEffect(() => {
     if (user?.role !== 'supplier') {
@@ -82,19 +94,30 @@ export default function SupplierJobsPage() {
     setLoading(false);
   };
 
-  const fetchAvailableBins = async (request: ServiceRequest) => {
+  const fetchOrderItems = async (requestId: number) => {
     try {
-      const response = await api.get<any>(`/bins/physical?status=available&supplier_id=${user?.id}`);
-      if (response.success) {
-        const bins = (response as any).bins || response.data?.bins || [];
-        // Filter bins matching the request's bin type and size
-        const matchingBins = bins.filter((bin: any) => 
-          bin.bin_type_name === request.bin_type_name && bin.bin_size === request.bin_size
-        );
-        setAvailableBins(matchingBins);
+      const response = await api.get<{ orderItems: OrderItem[] }>(`/bookings/${requestId}/order-items`);
+      if (response.success && response.data) {
+        const items = response.data.orderItems;
+        setOrderItems(items);
+        
+        // Fetch available bins for each order item
+        const binsMap: Record<number, PhysicalBin[]> = {};
+        const allBinsResponse = await api.get<any>(`/bins/physical?status=available&supplier_id=${user?.id}`);
+        if (allBinsResponse.success) {
+          const allBins = (allBinsResponse as any).bins || allBinsResponse.data?.bins || [];
+          
+          items.forEach((item) => {
+            const matchingBins = allBins.filter((bin: any) => 
+              bin.bin_type_name === item.bin_type_name && bin.bin_size === item.bin_size
+            );
+            binsMap[item.id] = matchingBins;
+          });
+        }
+        setAvailableBinsMap(binsMap);
       }
     } catch (error) {
-      console.error('Failed to fetch available bins:', error);
+      console.error('Failed to fetch order items:', error);
     }
   };
 
@@ -106,7 +129,7 @@ export default function SupplierJobsPage() {
       // If status is on_delivery, show bin assignment modal
       if (newStatus === 'on_delivery') {
         setSelectedRequest(request);
-        await fetchAvailableBins(request);
+        await fetchOrderItems(request.id);
         setShowBinModal(true);
         return;
       }
@@ -124,27 +147,37 @@ export default function SupplierJobsPage() {
   };
 
   const handleAssignBin = async () => {
-    if (!selectedRequest || !selectedBinCode) {
-      showToast('Please select a bin', 'error');
+    if (!selectedRequest) {
+      showToast('Please select a request', 'error');
+      return;
+    }
+
+    // Check if all order items have bins selected
+    const allSelected = orderItems.every(item => selectedBinCodes[item.id]);
+    if (!allSelected) {
+      showToast('Please select a bin for all order items', 'error');
       return;
     }
 
     try {
+      const binCodesArray = orderItems.map(item => selectedBinCodes[item.id]);
       const response = await api.put(`/bookings/${selectedRequest.id}/status`, { 
         status: 'on_delivery',
-        bin_code: selectedBinCode
+        bin_codes: binCodesArray
       });
       if (response.success) {
-        showToast('Bin assigned and status updated successfully', 'success');
+        showToast('Bins assigned and status updated successfully', 'success');
         setShowBinModal(false);
         setSelectedRequest(null);
-        setSelectedBinCode('');
+        setOrderItems([]);
+        setAvailableBinsMap({});
+        setSelectedBinCodes({});
         fetchRequests();
       } else {
-        showToast(response.message || 'Failed to assign bin', 'error');
+        showToast(response.message || 'Failed to assign bins', 'error');
       }
     } catch (error) {
-      showToast('Failed to assign bin', 'error');
+      showToast('Failed to assign bins', 'error');
     }
   };
 
@@ -342,7 +375,14 @@ export default function SupplierJobsPage() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
                   <div>
-                    <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{request.bin_type_name} - {request.bin_size}</div>
+                    <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                      {request.bin_type_name} - {request.bin_size}
+                      {request.order_items_count && request.order_items_count > 1 && (
+                        <span style={{ color: '#6B7280', fontWeight: 400, marginLeft: '0.5rem' }}>
+                          + more {request.order_items_count - 1}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>{request.request_id}</div>
                   </div>
                   <span style={{
@@ -440,43 +480,66 @@ export default function SupplierJobsPage() {
             overflowY: 'auto'
           }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>
-              Assign Bin to Order
+              Assign Bins to Order
             </h2>
             <p style={{ fontSize: '0.875rem', color: '#6B7280', marginBottom: '1rem' }}>
-              Select an available bin for this order. You can only assign bins registered under your name.
+              Select an available bin for each order item. You can only assign bins registered under your name.
             </p>
             
-            {availableBins.length === 0 ? (
+            {orderItems.length === 0 ? (
               <div style={{ 
                 padding: '2rem', 
                 textAlign: 'center', 
                 color: '#6B7280' 
               }}>
-                No available bins matching this order's requirements
+                Loading order items...
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
-                {availableBins.map((bin) => (
-                  <button
-                    key={bin.id}
-                    type="button"
-                    onClick={() => setSelectedBinCode(bin.bin_code)}
-                    style={{
-                      padding: '0.75rem',
-                      borderRadius: '8px',
-                      border: '2px solid',
-                      borderColor: selectedBinCode === bin.bin_code ? '#10B981' : '#E5E7EB',
-                      backgroundColor: selectedBinCode === bin.bin_code ? '#10B98120' : 'white',
-                      cursor: 'pointer',
-                      textAlign: 'left'
-                    }}
-                  >
-                    <div style={{ fontWeight: 600 }}>{bin.bin_code}</div>
-                    <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>
-                      {bin.bin_type_name} - {bin.bin_size}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem', maxHeight: '50vh', overflowY: 'auto' }}>
+                {orderItems.map((item) => {
+                  const availableBins = availableBinsMap[item.id] || [];
+                  const selectedBin = selectedBinCodes[item.id];
+                  
+                  return (
+                    <div key={item.id} style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '1rem' }}>
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                          {item.bin_type_name} - {item.bin_size}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>
+                          Status: {item.status}
+                        </div>
+                      </div>
+                      
+                      {availableBins.length === 0 ? (
+                        <div style={{ padding: '1rem', textAlign: 'center', color: '#EF4444', fontSize: '0.875rem' }}>
+                          No available bins matching this requirement
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {availableBins.map((bin) => (
+                            <button
+                              key={bin.id}
+                              type="button"
+                              onClick={() => setSelectedBinCodes({ ...selectedBinCodes, [item.id]: bin.bin_code })}
+                              style={{
+                                padding: '0.75rem',
+                                borderRadius: '8px',
+                                border: '2px solid',
+                                borderColor: selectedBin === bin.bin_code ? '#10B981' : '#E5E7EB',
+                                backgroundColor: selectedBin === bin.bin_code ? '#10B98120' : 'white',
+                                cursor: 'pointer',
+                                textAlign: 'left'
+                              }}
+                            >
+                              <div style={{ fontWeight: 600 }}>{bin.bin_code}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -485,7 +548,9 @@ export default function SupplierJobsPage() {
                 onClick={() => {
                   setShowBinModal(false);
                   setSelectedRequest(null);
-                  setSelectedBinCode('');
+                  setOrderItems([]);
+                  setAvailableBinsMap({});
+                  setSelectedBinCodes({});
                 }}
                 style={{
                   flex: 1,
@@ -502,19 +567,19 @@ export default function SupplierJobsPage() {
               </button>
               <button
                 onClick={handleAssignBin}
-                disabled={!selectedBinCode || availableBins.length === 0}
+                disabled={orderItems.length === 0 || !orderItems.every(item => selectedBinCodes[item.id])}
                 style={{
                   flex: 1,
                   padding: '0.75rem',
                   borderRadius: '8px',
                   border: 'none',
-                  backgroundColor: selectedBinCode ? '#10B981' : '#D1D5DB',
+                  backgroundColor: orderItems.every(item => selectedBinCodes[item.id]) ? '#10B981' : '#D1D5DB',
                   color: 'white',
                   fontWeight: 600,
-                  cursor: selectedBinCode ? 'pointer' : 'not-allowed'
+                  cursor: orderItems.every(item => selectedBinCodes[item.id]) ? 'pointer' : 'not-allowed'
                 }}
               >
-                Assign & Continue
+                Assign All & Continue
               </button>
             </div>
           </div>

@@ -17,6 +17,7 @@ interface ServiceRequest {
   status: string;
   payment_status: string;
   created_at: string;
+  order_items_count?: number;
 }
 
 export default function CustomerDashboardPage() {
@@ -225,6 +226,11 @@ export default function CustomerDashboardPage() {
                       <div>
                         <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#111827', marginBottom: '4px' }}>
                           {request.bin_type_name} - {request.bin_size}
+                          {request.order_items_count && request.order_items_count > 1 && (
+                            <span style={{ color: '#6B7280', fontWeight: 400, marginLeft: '0.5rem' }}>
+                              + more {request.order_items_count - 1}
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>{request.request_id}</div>
                       </div>
