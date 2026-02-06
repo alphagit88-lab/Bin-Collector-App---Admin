@@ -62,9 +62,9 @@ export default function SupplierFleetPage() {
         api.get<{ binTypes: BinType[] }>('/bins/types'),
       ]);
 
-      if (binsRes.success) {
-        // Backend returns: { success: true, bins: [...] }
-        const bins = binsRes.bins || binsRes.data?.bins || [];
+      if (binsRes.success && binsRes.data) {
+        // Since T is { bins: Bin[] }, data will have the bins property
+        const bins = binsRes.data.bins || [];
         setBins(bins);
       } else {
         console.error('Failed to fetch bins:', binsRes);
@@ -311,7 +311,7 @@ export default function SupplierFleetPage() {
           zIndex: 1000,
           padding: '20px'
         }}
-        onClick={() => setShowAddModal(false)}
+          onClick={() => setShowAddModal(false)}
         >
           <div
             style={{

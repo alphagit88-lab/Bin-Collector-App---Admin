@@ -164,6 +164,16 @@ export default function DashboardSidebar() {
       ),
     },
     {
+      label: 'Bills',
+      href: '/dashboard/bills',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 11l3 3L22 4"></path>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+        </svg>
+      ),
+    },
+    {
       label: 'System Settings',
       href: '/dashboard/settings',
       icon: (
@@ -180,14 +190,14 @@ export default function DashboardSidebar() {
   // Auto-expand/collapse menus based on active page
   useEffect(() => {
     const newExpandedMenus: Record<string, boolean> = {};
-    
+
     navItems.forEach(item => {
       if (item.children) {
         const hasActiveChild = item.children.some(child => isActive(child.href));
         newExpandedMenus[item.href] = hasActiveChild;
       }
     });
-    
+
     setExpandedMenus(newExpandedMenus);
   }, [pathname]);
 
@@ -213,9 +223,8 @@ export default function DashboardSidebar() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-screen z-50 transition-transform duration-300 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 w-64 bg-[#002418]`}
+        className={`fixed top-0 left-0 h-screen z-50 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0 w-64 bg-[#002418]`}
         style={{ borderRight: '1px solid rgba(255, 255, 255, 0.1)' }}
       >
         <div className="h-full flex flex-col">
@@ -272,11 +281,10 @@ export default function DashboardSidebar() {
                           setIsOpen(false);
                         }
                       }}
-                      className={`flex items-center space-x-2 px-4 py-3 rounded-md transition-colors flex-1 ${
-                        active || isParentActive
+                      className={`flex items-center space-x-2 px-4 py-3 rounded-md transition-colors flex-1 ${active || isParentActive
                           ? 'dashboard-nav-active'
                           : 'dashboard-nav-inactive'
-                      }`}
+                        }`}
                     >
                       <span>
                         {item.icon}
@@ -314,11 +322,10 @@ export default function DashboardSidebar() {
                             key={child.href}
                             href={child.href}
                             onClick={() => setIsOpen(false)}
-                            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
-                              childActive
+                            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${childActive
                                 ? 'dashboard-nav-active'
                                 : 'dashboard-nav-inactive opacity-75'
-                            }`}
+                              }`}
                           >
                             <span>
                               {child.icon}

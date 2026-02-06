@@ -24,9 +24,9 @@ interface ServiceRequest {
   customer_phone: string;
   supplier_name: string | null;
   supplier_phone: string | null;
-  invoice_id: string | null;
   created_at: string;
   order_items_count?: number;
+  bill_id?: string;
 }
 
 export default function BookingsPage() {
@@ -175,7 +175,7 @@ export default function BookingsPage() {
                 <th>Dates</th>
                 <th>Status</th>
                 <th>Payment</th>
-                <th>Invoice</th>
+                <th>Bill</th>
                 <th>Created</th>
               </tr>
             </thead>
@@ -244,22 +244,23 @@ export default function BookingsPage() {
                       </span>
                     </td>
                     <td>
-                      {booking.invoice_id ? (
+                      {booking.bill_id ? (
                         <a
-                          href={`/dashboard/invoices?invoice_id=${booking.invoice_id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href={`/dashboard/bills?bill_id=${booking.bill_id}`}
                           style={{
-                            color: '#10B981',
+                            fontFamily: 'monospace',
+                            fontSize: '0.875rem',
+                            color: '#3B82F6',
                             textDecoration: 'none',
-                            fontWeight: 500,
-                            fontSize: '0.875rem'
+                            cursor: 'pointer'
                           }}
+                          onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                          onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                         >
-                          {booking.invoice_id}
+                          {booking.bill_id}
                         </a>
                       ) : (
-                        '-'
+                        <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>-</span>
                       )}
                     </td>
                     <td>{new Date(booking.created_at).toLocaleDateString()}</td>
@@ -269,7 +270,7 @@ export default function BookingsPage() {
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }
