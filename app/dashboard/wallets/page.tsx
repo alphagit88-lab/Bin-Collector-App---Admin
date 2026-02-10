@@ -20,6 +20,7 @@ interface SupplierWallet {
 export default function WalletsPage() {
   const { showToast } = useToast();
   const [wallets, setWallets] = useState<SupplierWallet[]>([]);
+  const [stats, setStats] = useState<{ total_commission: string | number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,9 +30,10 @@ export default function WalletsPage() {
   const fetchWallets = async () => {
     setLoading(true);
     try {
-      const response = await api.get<{ wallets: SupplierWallet[] }>('/wallet/admin/wallets');
+      const response = await api.get<{ wallets: SupplierWallet[], stats: any }>('/wallet/admin/wallets');
       if (response.success && response.data) {
         setWallets(response.data.wallets);
+        setStats(response.data.stats);
       } else {
         showToast('Failed to fetch wallets', 'error');
       }
@@ -67,12 +69,12 @@ export default function WalletsPage() {
     <div className="min-h-screen p-8" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
       <div className="max-w-7xl mx-auto">
         <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>Supplier Wallets</h1>
-          <p style={{ color: 'var(--color-text-secondary)' }}>View all supplier wallet balances and earnings</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>Wallets</h1>
+          <p style={{ color: 'var(--color-text-secondary)' }}>View all wallet balances and earnings</p>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="dashboard-card rounded-lg p-6">
             <p className="text-sm mb-3 font-light" style={{ color: 'var(--color-text-secondary)' }}>Total Available Balance</p>
             <p className="text-3xl font-bold" style={{ color: '#10B981' }}>{formatCurrency(totalBalance)}</p>
@@ -84,6 +86,10 @@ export default function WalletsPage() {
           <div className="dashboard-card rounded-lg p-6">
             <p className="text-sm mb-3 font-light" style={{ color: 'var(--color-text-secondary)' }}>Total Earned</p>
             <p className="text-3xl font-bold" style={{ color: '#10B981' }}>{formatCurrency(totalEarned)}</p>
+          </div>
+          <div className="dashboard-card rounded-lg p-6">
+            <p className="text-sm mb-3 font-light" style={{ color: 'var(--color-text-secondary)' }}>Total Platform Commission</p>
+            <p className="text-3xl font-bold" style={{ color: '#10B981' }}>{formatCurrency(stats?.total_commission || 0)}</p>
           </div>
         </div>
 
