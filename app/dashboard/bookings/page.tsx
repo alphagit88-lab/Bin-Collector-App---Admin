@@ -27,6 +27,7 @@ interface ServiceRequest {
   created_at: string;
   order_items_count?: number;
   bill_id?: string;
+  attachment_url?: string;
 }
 
 export default function BookingsPage() {
@@ -176,6 +177,7 @@ export default function BookingsPage() {
                 <th>Status</th>
                 <th>Payment</th>
                 <th>Bill</th>
+                <th>Attachment</th>
                 <th>Created</th>
               </tr>
             </thead>
@@ -258,6 +260,26 @@ export default function BookingsPage() {
                           onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                         >
                           {booking.bill_id}
+                        </a>
+                      ) : (
+                        <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>-</span>
+                      )}
+                    </td>
+                    <td>
+                      {booking.attachment_url ? (
+                        <a
+                          href={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}${booking.attachment_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: '#10B981',
+                            textDecoration: 'none',
+                            fontWeight: 500,
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                          onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                        >
+                          View
                         </a>
                       ) : (
                         <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>-</span>
