@@ -25,6 +25,7 @@ interface ServiceRequest {
   bin_code?: string;
   created_at: string;
   order_items_count?: number;
+  attachment_url?: string;
 }
 
 interface PhysicalBin {
@@ -100,15 +101,15 @@ export default function SupplierJobsPage() {
       if (response.success && response.data) {
         const items = response.data.orderItems;
         setOrderItems(items);
-        
+
         // Fetch available bins for each order item
         const binsMap: Record<number, PhysicalBin[]> = {};
         const allBinsResponse = await api.get<any>(`/bins/physical?status=available&supplier_id=${user?.id}`);
         if (allBinsResponse.success) {
           const allBins = (allBinsResponse as any).bins || allBinsResponse.data?.bins || [];
-          
+
           items.forEach((item) => {
-            const matchingBins = allBins.filter((bin: any) => 
+            const matchingBins = allBins.filter((bin: any) =>
               bin.bin_type_name === item.bin_type_name && bin.bin_size === item.bin_size
             );
             binsMap[item.id] = matchingBins;
@@ -161,7 +162,7 @@ export default function SupplierJobsPage() {
 
     try {
       const binCodesArray = orderItems.map(item => selectedBinCodes[item.id]);
-      const response = await api.put(`/bookings/${selectedRequest.id}/status`, { 
+      const response = await api.put(`/bookings/${selectedRequest.id}/status`, {
         status: 'on_delivery',
         bin_codes: binCodesArray
       });
@@ -206,7 +207,7 @@ export default function SupplierJobsPage() {
   };
 
   const formatStatus = (status: string) => {
-    return status.split('_').map(word => 
+    return status.split('_').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
   };
@@ -220,8 +221,8 @@ export default function SupplierJobsPage() {
   }
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
+    <div style={{
+      minHeight: '100vh',
       backgroundColor: '#f5f5f5',
       padding: '1rem',
       maxWidth: '500px',
@@ -346,9 +347,9 @@ export default function SupplierJobsPage() {
       </div>
 
       {requests.length === 0 ? (
-        <div style={{ 
-          backgroundColor: 'white', 
-          borderRadius: '12px', 
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
           padding: '2rem',
           textAlign: 'center',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
@@ -405,10 +406,30 @@ export default function SupplierJobsPage() {
                 <div style={{ fontSize: '0.875rem', color: '#6B7280', marginTop: '0.25rem', marginBottom: '0.75rem' }}>
                   📅 {new Date(request.start_date).toLocaleDateString()} - {new Date(request.end_date).toLocaleDateString()}
                 </div>
+
+                {request.attachment_url && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>
+                      Attachment:
+                    </div>
+                    <img
+                      src={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}${request.attachment_url}`}
+                      alt="Attachment"
+                      style={{
+                        width: '100%',
+                        height: '150px',
+                        objectFit: 'cover',
+                        borderRadius: '8px',
+                        border: '1px solid #E5E7EB'
+                      }}
+                    />
+                  </div>
+                )}
+
                 {request.payment_status === 'paid' && (
-                  <div style={{ 
-                    padding: '0.5rem', 
-                    backgroundColor: '#10B98120', 
+                  <div style={{
+                    padding: '0.5rem',
+                    backgroundColor: '#10B98120',
                     borderRadius: '6px',
                     marginBottom: '0.75rem',
                     fontSize: '0.875rem',
@@ -419,9 +440,9 @@ export default function SupplierJobsPage() {
                   </div>
                 )}
                 {request.bin_code && (
-                  <div style={{ 
-                    padding: '0.5rem', 
-                    backgroundColor: '#F3F4F6', 
+                  <div style={{
+                    padding: '0.5rem',
+                    backgroundColor: '#F3F4F6',
                     borderRadius: '6px',
                     marginBottom: '0.75rem',
                     fontSize: '0.875rem',
@@ -443,8 +464,8 @@ export default function SupplierJobsPage() {
                       borderRadius: '8px',
                       fontWeight: 600,
                       cursor: 'pointer',
-                    textTransform: 'capitalize'
-                  }}
+                      textTransform: 'capitalize'
+                    }}
                   >
                     {nextStatus === 'on_delivery' ? 'Assign Bin & Mark On Delivery' : `Mark as ${formatStatus(nextStatus)}`}
                   </button>
@@ -485,12 +506,12 @@ export default function SupplierJobsPage() {
             <p style={{ fontSize: '0.875rem', color: '#6B7280', marginBottom: '1rem' }}>
               Select an available bin for each order item. You can only assign bins registered under your name.
             </p>
-            
+
             {orderItems.length === 0 ? (
-              <div style={{ 
-                padding: '2rem', 
-                textAlign: 'center', 
-                color: '#6B7280' 
+              <div style={{
+                padding: '2rem',
+                textAlign: 'center',
+                color: '#6B7280'
               }}>
                 Loading order items...
               </div>
@@ -499,7 +520,7 @@ export default function SupplierJobsPage() {
                 {orderItems.map((item) => {
                   const availableBins = availableBinsMap[item.id] || [];
                   const selectedBin = selectedBinCodes[item.id];
-                  
+
                   return (
                     <div key={item.id} style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '1rem' }}>
                       <div style={{ marginBottom: '0.75rem' }}>
@@ -510,7 +531,7 @@ export default function SupplierJobsPage() {
                           Status: {item.status}
                         </div>
                       </div>
-                      
+
                       {availableBins.length === 0 ? (
                         <div style={{ padding: '1rem', textAlign: 'center', color: '#EF4444', fontSize: '0.875rem' }}>
                           No available bins matching this requirement

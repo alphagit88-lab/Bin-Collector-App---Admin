@@ -30,6 +30,7 @@ interface ServiceRequest {
   created_at: string;
   order_items_count?: number;
   orderItems?: OrderItem[];
+  attachment_url?: string;
 }
 
 export default function SupplierNotificationsPage() {
@@ -116,8 +117,8 @@ export default function SupplierNotificationsPage() {
   }
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
+    <div style={{
+      minHeight: '100vh',
       backgroundColor: '#f5f5f5',
       padding: '1rem',
       maxWidth: '500px',
@@ -141,9 +142,9 @@ export default function SupplierNotificationsPage() {
       </div>
 
       {requests.length === 0 ? (
-        <div style={{ 
-          backgroundColor: 'white', 
-          borderRadius: '12px', 
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
           padding: '2rem',
           textAlign: 'center',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
@@ -189,27 +190,27 @@ export default function SupplierNotificationsPage() {
               </div>
 
               {/* Requested Bins */}
-              <div style={{ 
-                backgroundColor: '#F9FAFB', 
-                borderRadius: '8px', 
-                padding: '0.75rem', 
-                marginBottom: '0.75rem' 
+              <div style={{
+                backgroundColor: '#F9FAFB',
+                borderRadius: '8px',
+                padding: '0.75rem',
+                marginBottom: '0.75rem'
               }}>
-                <div style={{ 
-                  fontSize: '0.75rem', 
-                  fontWeight: 600, 
-                  color: '#374151', 
-                  marginBottom: '0.5rem' 
+                <div style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: '#374151',
+                  marginBottom: '0.5rem'
                 }}>
                   Requested Bins:
                 </div>
                 {request.orderItems && request.orderItems.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {request.orderItems.map((item, index) => (
-                      <div 
+                      <div
                         key={item.id || index}
-                        style={{ 
-                          fontSize: '0.875rem', 
+                        style={{
+                          fontSize: '0.875rem',
                           color: '#111827',
                           padding: '0.5rem',
                           backgroundColor: 'white',
@@ -237,6 +238,26 @@ export default function SupplierNotificationsPage() {
               <div style={{ fontSize: '0.875rem', color: '#6B7280', marginBottom: '1rem' }}>
                 📅 {new Date(request.start_date).toLocaleDateString()} - {new Date(request.end_date).toLocaleDateString()}
               </div>
+
+              {request.attachment_url && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>
+                    Attachment:
+                  </div>
+                  <img
+                    src={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}${request.attachment_url}`}
+                    alt="Attachment"
+                    style={{
+                      width: '100%',
+                      height: '150px',
+                      objectFit: 'cover',
+                      borderRadius: '8px',
+                      border: '1px solid #E5E7EB'
+                    }}
+                  />
+                </div>
+              )}
+
               <button
                 onClick={() => handleAcceptClick(request.request_id)}
                 style={{
@@ -282,29 +303,29 @@ export default function SupplierNotificationsPage() {
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>
               Accept Order
             </h2>
-            
+
             {/* Show requested bins in modal */}
             {selectedRequest.orderItems && selectedRequest.orderItems.length > 0 && (
-              <div style={{ 
-                backgroundColor: '#F9FAFB', 
-                borderRadius: '8px', 
-                padding: '0.75rem', 
-                marginBottom: '1rem' 
+              <div style={{
+                backgroundColor: '#F9FAFB',
+                borderRadius: '8px',
+                padding: '0.75rem',
+                marginBottom: '1rem'
               }}>
-                <div style={{ 
-                  fontSize: '0.75rem', 
-                  fontWeight: 600, 
-                  color: '#374151', 
-                  marginBottom: '0.5rem' 
+                <div style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: '#374151',
+                  marginBottom: '0.5rem'
                 }}>
                   Requested Bins:
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {selectedRequest.orderItems.map((item, index) => (
-                    <div 
+                    <div
                       key={item.id || index}
-                      style={{ 
-                        fontSize: '0.875rem', 
+                      style={{
+                        fontSize: '0.875rem',
                         color: '#111827',
                         padding: '0.5rem',
                         backgroundColor: 'white',
@@ -316,6 +337,25 @@ export default function SupplierNotificationsPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {selectedRequest.attachment_url && (
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>
+                  Attachment Preview:
+                </div>
+                <img
+                  src={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}${selectedRequest.attachment_url}`}
+                  alt="Attachment"
+                  style={{
+                    width: '100%',
+                    height: '120px',
+                    objectFit: 'cover',
+                    borderRadius: '8px',
+                    border: '1px solid #E5E7EB'
+                  }}
+                />
               </div>
             )}
 

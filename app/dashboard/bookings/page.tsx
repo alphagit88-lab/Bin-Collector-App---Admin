@@ -35,6 +35,7 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [selectedAttachment, setSelectedAttachment] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBookings();
@@ -267,20 +268,20 @@ export default function BookingsPage() {
                     </td>
                     <td>
                       {booking.attachment_url ? (
-                        <a
-                          href={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}${booking.attachment_url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => setSelectedAttachment(booking.attachment_url!)}
+                          className="cursor-pointer hover:underline"
                           style={{
                             color: '#10B981',
-                            textDecoration: 'none',
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
                             fontWeight: 500,
+                            textAlign: 'left'
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                          onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                         >
                           View
-                        </a>
+                        </button>
                       ) : (
                         <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>-</span>
                       )}
@@ -293,6 +294,46 @@ export default function BookingsPage() {
           </table>
         </div>
       </div >
+
+      {/* Attachment Modal */}
+      {selectedAttachment && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setSelectedAttachment(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-800">Attachment Preview</h3>
+              <button
+                onClick={() => setSelectedAttachment(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-8 flex justify-center bg-gray-50/50">
+              <img
+                src={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}${selectedAttachment}`}
+                alt="Attachment"
+                className="max-h-[65vh] object-contain rounded-2xl shadow-lg border border-gray-200"
+              />
+            </div>
+            <div className="p-6 border-t flex justify-end">
+              <button
+                onClick={() => setSelectedAttachment(null)}
+                className="px-8 py-3 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800 transition-all hover:scale-105 active:scale-95 shadow-lg"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 }
