@@ -298,37 +298,40 @@ export default function BookingsPage() {
       {/* Attachment Modal */}
       {selectedAttachment && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-8 md:p-12 lg:p-20 bg-black/70 backdrop-blur-sm"
           onClick={() => setSelectedAttachment(null)}
         >
           <div
-            className="relative max-w-4xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200"
+            className="relative max-w-4xl w-full max-h-[90vh] bg-white rounded-[2.5rem] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col border border-gray-100"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b flex justify-between items-center">
-              <h3 className="text-xl font-bold text-gray-800">Attachment Preview</h3>
+            <div className="p-6 md:p-8 border-b flex justify-between items-center bg-white/50 backdrop-blur-md sticky top-0 z-10">
+              <div>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Attachment Preview</h3>
+                <p className="text-sm text-gray-500 font-medium">Customer uploaded booking photo</p>
+              </div>
               <button
                 onClick={() => setSelectedAttachment(null)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
+                className="p-3 hover:bg-gray-100 rounded-2xl transition-all text-gray-400 hover:text-gray-900 hover:rotate-90 duration-300"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <div className="p-8 flex justify-center bg-gray-50/50">
+            <div className="p-10 flex justify-center bg-gray-50/80 overflow-y-auto flex-1">
               <img
                 src={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}${selectedAttachment}`}
                 alt="Attachment"
-                className="max-h-[65vh] object-contain rounded-2xl shadow-lg border border-gray-200"
+                className="max-h-full w-auto object-contain rounded-3xl shadow-2xl border-4 border-white"
               />
             </div>
-            <div className="p-6 border-t flex justify-end">
+            <div className="p-6 md:p-8 border-t flex justify-end bg-white/50 backdrop-blur-md sticky bottom-0 z-10">
               <button
                 onClick={() => setSelectedAttachment(null)}
-                className="px-8 py-3 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800 transition-all hover:scale-105 active:scale-95 shadow-lg"
+                className="px-10 py-4 bg-gray-900 text-white rounded-2xl font-black tracking-wide hover:bg-black transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl hover:shadow-black/20"
               >
-                Close
+                CLOSE PREVIEW
               </button>
             </div>
           </div>
