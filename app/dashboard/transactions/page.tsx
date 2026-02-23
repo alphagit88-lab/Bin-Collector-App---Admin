@@ -172,6 +172,7 @@ export default function TransactionsPage() {
                 <th>Supplier</th>
                 <th>Amount</th>
                 <th>Commission</th>
+                <th>Percentage</th>
                 <th>Net Amount</th>
                 <th>Status</th>
                 <th>Payment Method</th>
@@ -214,6 +215,11 @@ export default function TransactionsPage() {
                     <td style={{ fontWeight: 600 }}>{formatCurrency(transaction.amount)}</td>
                     <td style={{ color: 'var(--color-text-secondary)' }}>
                       {formatCurrency(transaction.commission_amount)}
+                    </td>
+                    <td style={{ color: 'var(--color-text-secondary)' }}>
+                      {transaction.amount && parseFloat(transaction.amount) > 0
+                        ? `${((parseFloat(transaction.commission_amount) / parseFloat(transaction.amount)) * 100).toFixed(0)}%`
+                        : '0%'}
                     </td>
                     <td style={{ fontWeight: 500 }}>{formatCurrency(transaction.net_amount)}</td>
                     <td>
