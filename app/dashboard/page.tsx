@@ -29,6 +29,10 @@ export default function DashboardPage() {
       router.push('/mobile/supplier/notifications');
       return;
     }
+    if (user?.role === 'driver') {
+      router.push('/mobile/driver/dashboard');
+      return;
+    }
 
     loadStats();
   }, [authLoading, user, router]);

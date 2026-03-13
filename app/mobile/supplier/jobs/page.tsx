@@ -23,6 +23,8 @@ interface ServiceRequest {
   payment_status: string;
   bin_id?: number;
   bin_code?: string;
+  driver_id?: number;
+  driver_name?: string;
   created_at: string;
   order_items_count?: number;
   attachment_url?: string;
@@ -59,6 +61,8 @@ export default function SupplierJobsPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [availableBinsMap, setAvailableBinsMap] = useState<Record<number, PhysicalBin[]>>({});
   const [selectedBinCodes, setSelectedBinCodes] = useState<Record<number, string>>({});
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [assigningDriverId, setAssigningDriverId] = useState<Record<number, number>>({});
 
   useEffect(() => {
     if (user?.role !== 'supplier') {
@@ -91,6 +95,19 @@ export default function SupplierJobsPage() {
     const response = await api.get<{ requests: ServiceRequest[] }>(`/bookings/supplier/requests${params}`);
     if (response.success && response.data) {
       setRequests(response.data.requests);
+      
+      // Initialize assigningDriverId state
+      const initialAssigning = {} as Record<number, number>;
+      response.data.requests.forEach(r => {
+          if (r.driver_id) initialAssigning[r.id] = r.driver_id;
+      });
+      setAssigningDriverId(initialAssigning);
+    }
+    
+    // Fetch drivers
+    const driversRes = await api.get<{ drivers: any[] }>('/suppliers/drivers');
+    if (driversRes.success && driversRes.data) {
+        setDrivers(driversRes.data.drivers);
     }
     setLoading(false);
   };
@@ -179,6 +196,23 @@ export default function SupplierJobsPage() {
       }
     } catch (error) {
       showToast('Failed to assign bins', 'error');
+    }
+  };
+
+  const handleAssignDriver = async (requestId: number, driverId: number) => {
+    try {
+        const response = await api.post('/suppliers/assign-driver', {
+            bookingId: requestId,
+            driverId: driverId
+        });
+        if (response.success) {
+            showToast('Driver assigned successfully', 'success');
+            fetchRequests();
+        } else {
+            showToast(response.message || 'Failed to assign driver', 'error');
+        }
+    } catch (error) {
+        showToast('Failed to assign driver', 'error');
     }
   };
 
@@ -451,6 +485,50 @@ export default function SupplierJobsPage() {
                   }}>
                     📦 Bin: {request.bin_code}
                   </div>
+                )}
+
+                {/* Driver Assignment */}
+                {['confirmed', 'on_delivery', 'delivered', 'ready_to_pickup', 'pickup'].includes(request.status) && (
+                    <div style={{ marginBottom: '1rem', borderTop: '1px solid #F3F4F6', paddingTop: '1rem' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: '0.5rem' }}>
+                            {request.driver_id ? 'Assigned Driver:' : 'Assign Driver:'}
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <select 
+                                value={assigningDriverId[request.id] || ''}
+                                onChange={(e) => setAssigningDriverId({...assigningDriverId, [request.id]: parseInt(e.target.value)})}
+                                style={{
+                                    flex: 1,
+                                    padding: '8px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #E5E7EB',
+                                    fontSize: '0.875rem'
+                                }}
+                            >
+                                <option value="">Select a driver</option>
+                                {drivers.map(d => (
+                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                            </select>
+                            <button 
+                                onClick={() => handleAssignDriver(request.id, assigningDriverId[request.id])}
+                                disabled={!assigningDriverId[request.id]}
+                                style={{
+                                    padding: '8px 16px',
+                                    backgroundColor: '#10B981',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    opacity: !assigningDriverId[request.id] ? 0.5 : 1
+                                }}
+                            >
+                                {request.driver_id ? 'Reassign' : 'Assign'}
+                            </button>
+                        </div>
+                    </div>
                 )}
                 {nextStatus && (
                   <button

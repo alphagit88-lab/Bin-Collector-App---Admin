@@ -9,8 +9,9 @@ interface User {
   name: string;
   phone: string;
   email?: string;
-  role: 'admin' | 'customer' | 'supplier';
-   supplierType?: 'commercial' | 'residential' | 'commercial_residential' | null;
+  role: 'admin' | 'customer' | 'supplier' | 'driver';
+  supplierType?: 'commercial' | 'residential' | 'commercial_residential' | null;
+  supplierId?: number;
 }
 
 interface AuthContextType {

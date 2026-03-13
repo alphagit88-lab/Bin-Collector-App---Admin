@@ -82,7 +82,7 @@ export default function SupplierDashboardPage() {
           activeJobs: allRequests.filter(r => ['confirmed', 'on_delivery', 'delivered', 'ready_to_pickup', 'pickup'].includes(r.status)).length,
           pendingRequests: allRequests.filter(r => r.status === 'pending').length,
           completed: allRequests.filter(r => r.status === 'completed').length,
-          totalBins: binsRes.success ? (binsRes.bins || binsRes.data?.bins || []).length : 0,
+          totalBins: binsRes.success && binsRes.data ? binsRes.data.bins.length : 0,
         });
       }
 
@@ -213,6 +213,19 @@ export default function SupplierDashboardPage() {
             }}>
               <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>⏰</div>
               <div style={{ fontSize: '0.875rem', fontWeight: 500, color: '#111827' }}>Availability</div>
+            </div>
+          </Link>
+          <Link href="/mobile/supplier/drivers" style={{ textDecoration: 'none' }}>
+            <div style={{
+              background: 'white',
+              padding: '16px',
+              borderRadius: '12px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              cursor: 'pointer',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>👷</div>
+              <div style={{ fontSize: '0.875rem', fontWeight: 500, color: '#111827' }}>Drivers</div>
             </div>
           </Link>
         </div>

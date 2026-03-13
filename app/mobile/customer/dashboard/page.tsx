@@ -213,19 +213,19 @@ export default function CustomerDashboardPage() {
                     cursor: 'pointer',
                     transition: 'all 0.2s'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#10B981';
-                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#E5E7EB';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#10B981';
+                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = '#E5E7EB';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
                       <div>
                         <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#111827', marginBottom: '4px' }}>
-                          {request.bin_type_name} - {request.bin_size}
+                          {request.bin_type_name} {request.bin_size ? ` - ${request.bin_size}` : ''}
                           {request.order_items_count && request.order_items_count > 1 && (
                             <span style={{ color: '#6B7280', fontWeight: 400, marginLeft: '0.5rem' }}>
                               + more {request.order_items_count - 1}
