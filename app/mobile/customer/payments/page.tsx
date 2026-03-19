@@ -45,9 +45,9 @@ export default function CustomerPaymentsPage() {
     try {
       // Fetch customer's transactions
       const response = await api.get<{ transactions: Transaction[] }>('/transactions/my?transaction_type=payment');
-      if (response.success) {
-        // Backend returns: { success: true, transactions: [...] }
-        const allTransactions = response.transactions || response.data?.transactions || [];
+      if (response.success && response.data) {
+        // Backend returns: { success: true, data: { transactions: [...] } }
+        const allTransactions = response.data.transactions || [];
         setTransactions(allTransactions);
 
         // Calculate stats
