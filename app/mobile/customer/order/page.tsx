@@ -66,7 +66,8 @@ export default function CustomerOrderPage() {
   const fetchBinSizes = async (binTypeId: number) => {
     const response = await api.get<{ binSizes: BinSize[] }>(`/bins/sizes?binTypeId=${binTypeId}`);
     if (response.success && response.data) {
-      setBinSizesMap((prev) => ({ ...prev, [binTypeId]: response.data.binSizes }));
+      const data = response.data;
+      setBinSizesMap((prev) => ({ ...prev, [binTypeId]: data.binSizes }));
     }
   };
 
@@ -91,12 +92,12 @@ export default function CustomerOrderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Prevent duplicate submissions
     if (loading) {
       return;
     }
-    
+
     // Validate bins
     const validBins = bins.filter(b => b.bin_type_id && b.bin_size_id);
     if (validBins.length === 0) {
@@ -135,22 +136,22 @@ export default function CustomerOrderPage() {
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
+    <div style={{
+      minHeight: '100vh',
       backgroundColor: '#f5f5f5',
       padding: '1rem',
       maxWidth: '500px',
       margin: '0 auto'
     }}>
-      <div style={{ 
-        backgroundColor: 'white', 
-        borderRadius: '12px', 
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
         padding: '1.5rem',
         marginBottom: '1rem',
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
       }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem' }}>Order a Bin</h1>
-        
+
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Service Type *</label>
@@ -210,12 +211,12 @@ export default function CustomerOrderPage() {
                 + Add Bin
               </button>
             </div>
-            
+
             {bins.map((bin, index) => (
-              <div key={index} style={{ 
-                border: '1px solid #ddd', 
-                borderRadius: '8px', 
-                padding: '1rem', 
+              <div key={index} style={{
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                padding: '1rem',
                 marginBottom: '0.75rem',
                 position: 'relative'
               }}>
@@ -400,7 +401,7 @@ export default function CustomerOrderPage() {
               </button>
             </div>
             <p style={{ fontSize: '0.875rem', color: '#6B7280', marginTop: '0.5rem' }}>
-              {formData.payment_method === 'online' 
+              {formData.payment_method === 'online'
                 ? 'Payment will be processed when order is confirmed'
                 : 'Payment will be collected when bin is delivered'}
             </p>
