@@ -37,6 +37,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const adminOnlyMessage = 'Only admin accounts can sign in to this application.';
+
+  const clearSession = (redirectToLogin = false) => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+
+    if (redirectToLogin) {
+      router.replace('/login');
+    }
+  };
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
@@ -51,18 +62,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUser = async (authToken: string) => {
     try {
       const response = await api.get<{ user: User }>('/auth/me');
-      if (response.success && response.data) {
+      if (response.success && response.data?.user.role === 'admin') {
         setUser(response.data.user);
         setToken(authToken);
       } else {
-        localStorage.removeItem('token');
-        setToken(null);
-        setUser(null);
+        clearSession(true);
       }
     } catch (error) {
-      localStorage.removeItem('token');
-      setToken(null);
-      setUser(null);
+      clearSession(true);
     } finally {
       setLoading(false);
     }
@@ -75,11 +82,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
       });
 
-      if (response.success && response.data) {
+      if (response.success && response.data?.user.role === 'admin') {
         setUser(response.data.user);
         setToken(response.data.token);
         localStorage.setItem('token', response.data.token);
         return { success: true };
+      } else if (response.success && response.data) {
+        clearSession();
+        return { success: false, message: adminOnlyMessage };
       } else {
         return { success: false, message: response.message || 'Login failed' };
       }
@@ -109,11 +119,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supplierType,
       });
 
-      if (response.success && response.data) {
+      if (response.success && response.data?.user.role === 'admin') {
         setUser(response.data.user);
         setToken(response.data.token);
         localStorage.setItem('token', response.data.token);
         return { success: true };
+      } else if (response.success && response.data) {
+        clearSession();
+        return { success: false, message: adminOnlyMessage };
       } else {
         return { success: false, message: response.message || 'Signup failed' };
       }
@@ -126,9 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
+    clearSession();
     router.push('/login');
   };
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useToast } from '@/contexts/ToastContext';
+import { API_BASE_URL } from '@/lib/backend';
 import { api } from '@/lib/api';
 
 interface ServiceRequest {
@@ -321,7 +322,7 @@ export default function BookingsPage() {
             </div>
             <div className="p-10 flex justify-center bg-gray-50/80 overflow-y-auto flex-1">
               <img
-                src={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}${selectedAttachment}`}
+                src={`${API_BASE_URL}${selectedAttachment}`}
                 alt="Attachment"
                 className="max-h-full w-auto object-contain rounded-3xl shadow-2xl border-4 border-white"
               />

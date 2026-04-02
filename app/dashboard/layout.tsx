@@ -18,6 +18,10 @@ export default function DashboardLayout({
       router.push('/login');
       return;
     }
+
+    if (!authLoading && user?.role !== 'admin') {
+      router.push('/login');
+    }
   }, [authLoading, user, router]);
 
   if (authLoading) {
@@ -31,7 +35,7 @@ export default function DashboardLayout({
     );
   }
 
-  if (!user) {
+  if (!user || user.role !== 'admin') {
     return null;
   }
 

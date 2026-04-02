@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { API_BASE_URL } from '@/lib/backend';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -18,9 +19,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (token && user) {
-      const socketUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
-
-      const newSocket = io(socketUrl, {
+      const newSocket = io(API_BASE_URL, {
         auth: { token },
         transports: ['websocket', 'polling'],
       });

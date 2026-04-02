@@ -20,21 +20,14 @@ export default function DashboardPage() {
       return;
     }
 
-    // Redirect customers and suppliers to mobile pages
-    if (user?.role === 'customer') {
-      router.push('/mobile/customer/orders');
-      return;
-    }
-    if (user?.role === 'supplier') {
-      router.push('/mobile/supplier/notifications');
-      return;
-    }
-    if (user?.role === 'driver') {
-      router.push('/mobile/driver/dashboard');
+    if (!authLoading && user?.role !== 'admin') {
+      router.push('/login');
       return;
     }
 
-    loadStats();
+    if (user?.role === 'admin') {
+      loadStats();
+    }
   }, [authLoading, user, router]);
 
   const loadStats = async () => {
@@ -62,6 +55,10 @@ export default function DashboardPage() {
         </div>
       </div>
     );
+  }
+
+  if (!user || user.role !== 'admin') {
+    return null;
   }
 
   return (
