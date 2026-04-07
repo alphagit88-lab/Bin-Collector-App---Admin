@@ -1,7 +1,5 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
@@ -24,10 +22,13 @@ interface OrderBin {
   quantity: number;
 }
 
-export default function CustomerOrderPage() {
+function OrderFormContent() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const repeatRequestId = searchParams.get('repeatRequestId');
+
   const [binTypes, setBinTypes] = useState<BinType[]>([]);
   const [binSizesMap, setBinSizesMap] = useState<Record<number, BinSize[]>>({});
   const [loading, setLoading] = useState(false);
@@ -38,7 +39,9 @@ export default function CustomerOrderPage() {
     start_date: '',
     end_date: '',
     payment_method: 'online',
+    po_number: '',
   });
+  const [additionalImages, setAdditionalImages] = useState<File[]>([]);
 
   useEffect(() => {
     if (user?.role !== 'customer') {
@@ -46,7 +49,11 @@ export default function CustomerOrderPage() {
       return;
     }
     fetchBinTypes();
-  }, [user, router]);
+    
+    if (repeatRequestId) {
+      fetchRepeatOrderData(repeatRequestId);
+    }
+  }, [user, router, repeatRequestId]);
 
   useEffect(() => {
     bins.forEach((bin) => {
@@ -55,6 +62,38 @@ export default function CustomerOrderPage() {
       }
     });
   }, [bins]);
+
+  const fetchRepeatOrderData = async (requestId: string) => {
+    try {
+      const response = await api.get<{ requests: any[] }>('/bookings/my-requests');
+      if (response.success && response.data) {
+        const order = response.data.requests.find(r => r.request_id === requestId);
+        if (order) {
+          setFormData({
+            service_category: order.service_category || 'residential',
+            location: order.location || '',
+            start_date: '', // Don't repeat dates per se, usually want fresh ones
+            end_date: '',
+            payment_method: order.payment_method || 'online',
+            po_number: order.po_number || '',
+          });
+
+          if (order.items && order.items.length > 0) {
+            // Group identical items or just list them
+            const repeatBins = order.items.map((item: any) => ({
+              bin_type_id: item.bin_type_id.toString(),
+              bin_size_id: item.bin_size_id ? item.bin_size_id.toString() : '',
+              quantity: 1, // Repeat individual items as quantity 1 for now or merge
+            }));
+            setBins(repeatBins);
+          }
+          showToast('Order details pre-filled from previous order', 'success');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching repeat order data:', error);
+    }
+  };
 
   const fetchBinTypes = async () => {
     const response = await api.get<{ binTypes: BinType[] }>('/bins/types');
@@ -90,15 +129,17 @@ export default function CustomerOrderPage() {
     setBins(updated);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setAdditionalImages(Array.from(e.target.files));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Prevent duplicate submissions
-    if (loading) {
-      return;
-    }
+    if (loading) return;
 
-    // Validate bins
     const validBins = bins.filter(b => b.bin_type_id && b.bin_size_id);
     if (validBins.length === 0) {
       showToast('Please add at least one bin to your order', 'error');
@@ -108,21 +149,26 @@ export default function CustomerOrderPage() {
     setLoading(true);
 
     try {
-      const payload = {
-        ...formData,
-        bins: validBins.map(b => ({
-          bin_type_id: parseInt(b.bin_type_id),
-          bin_size_id: parseInt(b.bin_size_id),
-          quantity: b.quantity || 1,
-        })),
-      };
+      const formDataToSend = new FormData();
+      formDataToSend.append('service_category', formData.service_category);
+      formDataToSend.append('location', formData.location);
+      formDataToSend.append('start_date', formData.start_date);
+      formDataToSend.append('end_date', formData.end_date);
+      formDataToSend.append('payment_method', formData.payment_method);
+      formDataToSend.append('po_number', formData.po_number);
+      formDataToSend.append('bins', JSON.stringify(validBins.map(b => ({
+        bin_type_id: parseInt(b.bin_type_id),
+        bin_size_id: parseInt(b.bin_size_id),
+        quantity: b.quantity || 1,
+      }))));
 
-      console.log('Submitting order with bins:', payload.bins); // Debug log
+      additionalImages.forEach((file) => {
+        formDataToSend.append('attachments', file);
+      });
 
-      const response = await api.post('/bookings', payload);
+      const response = await api.post('/bookings', formDataToSend);
       if (response.success) {
-        console.log('Order created:', response.data); // Debug log
-        showToast(`Order placed successfully with ${validBins.length} bin type(s)! Suppliers will be notified.`, 'success');
+        showToast('Order placed successfully!', 'success');
         router.push('/mobile/customer/orders');
       } else {
         showToast(response.message || 'Failed to place order', 'error');
@@ -311,6 +357,23 @@ export default function CustomerOrderPage() {
           </div>
 
           <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>PO Number (Optional)</label>
+            <input
+              type="text"
+              value={formData.po_number}
+              onChange={(e) => setFormData({ ...formData, po_number: e.target.value })}
+              placeholder="Enter purchase order number"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '1px solid #ddd',
+                fontSize: '1rem'
+              }}
+            />
+          </div>
+
+          <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Location *</label>
             <input
               type="text"
@@ -400,11 +463,28 @@ export default function CustomerOrderPage() {
                 Cash on Delivery
               </button>
             </div>
-            <p style={{ fontSize: '0.875rem', color: '#6B7280', marginTop: '0.5rem' }}>
-              {formData.payment_method === 'online'
-                ? 'Payment will be processed when order is confirmed'
-                : 'Payment will be collected when bin is delivered'}
-            </p>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Photos / Attachments</label>
+            <input
+              type="file"
+              multiple
+              onChange={handleFileChange}
+              accept="image/*"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '1px solid #ddd',
+                fontSize: '0.875rem'
+              }}
+            />
+            {additionalImages.length > 0 && (
+              <p style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '0.5rem' }}>
+                {additionalImages.length} file(s) selected
+              </p>
+            )}
           </div>
 
           <button
@@ -428,5 +508,13 @@ export default function CustomerOrderPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function CustomerOrderPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <OrderFormContent />
+    </Suspense>
   );
 }

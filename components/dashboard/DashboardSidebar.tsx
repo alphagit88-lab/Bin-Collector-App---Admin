@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSocket } from '@/contexts/SocketContext';
+import { api } from '@/lib/api';
 
 interface NavItem {
   label: string;
@@ -16,8 +18,10 @@ export default function DashboardSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { socket } = useSocket();
   const [isOpen, setIsOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
@@ -164,6 +168,15 @@ export default function DashboardSidebar() {
       ),
     },
     {
+      label: 'Messages',
+      href: '/dashboard/messages',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+      ),
+    },
+    {
       label: 'Wallets',
       href: '/dashboard/wallets',
       icon: (
@@ -233,6 +246,37 @@ export default function DashboardSidebar() {
 
     setExpandedMenus(newExpandedMenus);
   }, [pathname]);
+
+  const fetchUnreadMessageCount = async () => {
+    try {
+      const response = await api.get<{ count: number }>('/messages/unread-count');
+      if (response.success && response.data) {
+        setUnreadMessageCount(Number(response.data.count) || 0);
+      }
+    } catch (e) {
+      // keep badge silent on failure
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role !== 'admin') return;
+    fetchUnreadMessageCount();
+  }, [user?.role, pathname]);
+
+  useEffect(() => {
+    if (!socket || user?.role !== 'admin') return;
+    const refreshUnread = () => fetchUnreadMessageCount();
+    socket.on('new_message', refreshUnread);
+    return () => {
+      socket.off('new_message', refreshUnread);
+    };
+  }, [socket, user?.role]);
+
+  useEffect(() => {
+    if (user?.role !== 'admin') return;
+    const interval = setInterval(fetchUnreadMessageCount, 15000);
+    return () => clearInterval(interval);
+  }, [user?.role]);
 
   const getInitials = (name: string) => {
     return name
@@ -323,6 +367,11 @@ export default function DashboardSidebar() {
                         {item.icon}
                       </span>
                       <span className="font-medium text-sm">{item.label}</span>
+                      {item.href === '/dashboard/messages' && unreadMessageCount > 0 && (
+                        <span className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[11px] font-semibold bg-red-500 text-white">
+                          {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                        </span>
+                      )}
                     </Link>
                     {hasChildren && (
                       <button

@@ -152,7 +152,7 @@ export default function CustomerDashboardPage() {
         </div>
 
         {/* Quick Links */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
           <Link href="/mobile/customer/tracking" style={{ textDecoration: 'none' }}>
             <div style={{
               background: 'white',
@@ -177,6 +177,19 @@ export default function CustomerDashboardPage() {
             }}>
               <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>💳</div>
               <div style={{ fontSize: '0.875rem', fontWeight: 500, color: '#111827' }}>Payments</div>
+            </div>
+          </Link>
+          <Link href="/mobile/customer/billing" style={{ textDecoration: 'none' }}>
+            <div style={{
+              background: 'white',
+              padding: '16px',
+              borderRadius: '12px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              cursor: 'pointer',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>📄</div>
+              <div style={{ fontSize: '0.875rem', fontWeight: 500, color: '#111827' }}>Billing</div>
             </div>
           </Link>
         </div>

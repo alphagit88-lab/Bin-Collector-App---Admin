@@ -12,6 +12,7 @@ interface User {
   role: 'admin' | 'customer' | 'supplier' | 'driver';
   supplierType?: 'commercial' | 'residential' | 'commercial_residential' | null;
   supplierId?: number;
+  canViewBilling?: boolean;
 }
 
 interface AuthContextType {

@@ -11,6 +11,7 @@ interface Customer {
   phone: string;
   email?: string;
   role: 'customer';
+  canViewBilling: boolean;
   created_at: string;
 }
 
@@ -41,6 +42,27 @@ export default function CustomersPage() {
       showToast('Failed to fetch customers', 'error');
     }
     setLoading(false);
+  };
+
+  const handleToggleBilling = async (customer: Customer) => {
+    const newVal = !customer.canViewBilling;
+    try {
+      const response = await api.post('/billing/toggle-visibility', {
+        userId: customer.id,
+        canViewBilling: newVal,
+      });
+
+      if (response.success) {
+        showToast(`Billing access ${newVal ? 'enabled' : 'disabled'} for ${customer.name}`, 'success');
+        setCustomers(customers.map(c => 
+          c.id === customer.id ? { ...c, canViewBilling: newVal } : c
+        ));
+      } else {
+        showToast(response.message || 'Failed to update billing access', 'error');
+      }
+    } catch (error) {
+      showToast('Error updating billing access', 'error');
+    }
   };
 
   const handleCreate = () => {
@@ -143,6 +165,7 @@ export default function CustomersPage() {
                 <th>Name</th>
                 <th>Phone</th>
                 <th>Email</th>
+                <th>Billing Access</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -150,7 +173,7 @@ export default function CustomersPage() {
             <tbody>
               {customers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>
                     No customers found
                   </td>
                 </tr>
@@ -160,6 +183,31 @@ export default function CustomersPage() {
                     <td style={{ fontWeight: 500 }}>{customer.name}</td>
                     <td>{customer.phone}</td>
                     <td>{customer.email || '-'}</td>
+                    <td>
+                      <div 
+                        onClick={() => handleToggleBilling(customer)}
+                        style={{
+                          width: '40px',
+                          height: '20px',
+                          backgroundColor: customer.canViewBilling ? '#10B981' : '#D1D5DB',
+                          borderRadius: '20px',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s'
+                        }}
+                      >
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: 'white',
+                          borderRadius: '50%',
+                          position: 'absolute',
+                          top: '2px',
+                          left: customer.canViewBilling ? '22px' : '2px',
+                          transition: 'left 0.2s'
+                        }} />
+                      </div>
+                    </td>
                     <td>{new Date(customer.created_at).toLocaleDateString()}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
