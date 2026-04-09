@@ -27,7 +27,7 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     setLoading(true);
-    const response = await api.get<{ settings: SystemSetting[] }>('/settings');
+    const response = await api.get<{ settings: SystemSetting[] }>('/settings?includePublic=true');
     if (response.success && response.data) {
       setSettings(response.data.settings);
     } else {
