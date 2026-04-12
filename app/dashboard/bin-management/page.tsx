@@ -59,15 +59,24 @@ export default function BinManagementPage() {
     notes: '',
   });
   const [binSizesForPhysical, setBinSizesForPhysical] = useState<BinSize[]>([]);
+  const [isFetchingSizes, setIsFetchingSizes] = useState(false);
+  const [hasFetchedSizes, setHasFetchedSizes] = useState(false);
 
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchBinSizes = async (binTypeId: number) => {
-    const response = await api.get<{ binSizes: BinSize[] }>(`/bins/sizes?binTypeId=${binTypeId}`);
-    if (response.success && response.data) {
-      setBinSizesForPhysical(response.data.binSizes);
+    setIsFetchingSizes(true);
+    setHasFetchedSizes(false);
+    try {
+      const response = await api.get<{ binSizes: BinSize[] }>(`/bins/sizes?binTypeId=${binTypeId}`);
+      if (response.success && response.data) {
+        setBinSizesForPhysical(response.data.binSizes);
+        setHasFetchedSizes(true);
+      }
+    } finally {
+      setIsFetchingSizes(false);
     }
   };
 
@@ -146,6 +155,8 @@ export default function BinManagementPage() {
           </div>
           <button className="btn btn-primary cursor-pointer" onClick={() => {
             setPhysicalBinFormData({ bin_code: '', bin_type_id: '', bin_size_id: '', supplier_id: '', notes: '' });
+            setBinSizesForPhysical([]);
+            setHasFetchedSizes(false);
             setShowPhysicalBinModal(true);
           }}>
             + Create Bin
@@ -176,17 +187,17 @@ export default function BinManagementPage() {
                 .map((bin) => (
                   <tr key={bin.id}>
                     <td style={{ fontWeight: 600 }}>{bin.bin_code}</td>
-                    <td>{bin.bin_type_name} - {bin.bin_size}</td>
+                    <td>{bin.bin_type_name} {bin.bin_size ? ` - ${bin.bin_size}` : ''}</td>
                     <td>
                       <span style={{
                         padding: '4px 12px',
                         borderRadius: '12px',
                         fontSize: '0.75rem',
                         fontWeight: 500,
-                        backgroundColor: bin.status === 'available' ? '#10B98120' : 
-                                        bin.status === 'unavailable' ? '#EF444420' : '#3B82F620',
-                        color: bin.status === 'available' ? '#10B981' : 
-                               bin.status === 'unavailable' ? '#EF4444' : '#3B82F6'
+                        backgroundColor: bin.status === 'available' ? '#10B98120' :
+                          bin.status === 'unavailable' ? '#EF444420' : '#3B82F620',
+                        color: bin.status === 'available' ? '#10B981' :
+                          bin.status === 'unavailable' ? '#EF4444' : '#3B82F6'
                       }}>
                         {bin.status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                       </span>
@@ -217,10 +228,10 @@ export default function BinManagementPage() {
             const matchesStatus = filterStatus === 'all' || bin.status === filterStatus;
             return matchesCode && matchesStatus;
           }).length === 0 && (
-            <div style={{ textAlign: 'center', padding: '2rem', color: '#6B7280' }}>
-              No bins found
-            </div>
-          )}
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#6B7280' }}>
+                No bins found
+              </div>
+            )}
         </div>
 
         {/* Physical Bin Create Modal */}
@@ -250,7 +261,7 @@ export default function BinManagementPage() {
                   const response = await api.post('/bins/physical', {
                     bin_code: physicalBinFormData.bin_code || undefined,
                     bin_type_id: parseInt(physicalBinFormData.bin_type_id),
-                    bin_size_id: parseInt(physicalBinFormData.bin_size_id),
+                    bin_size_id: physicalBinFormData.bin_size_id ? parseInt(physicalBinFormData.bin_size_id) : undefined,
                     supplier_id: physicalBinFormData.supplier_id ? parseInt(physicalBinFormData.supplier_id) : undefined,
                     notes: physicalBinFormData.notes || undefined,
                   });
@@ -282,9 +293,13 @@ export default function BinManagementPage() {
                     className="form-control"
                     value={physicalBinFormData.bin_type_id}
                     onChange={(e) => {
-                      setPhysicalBinFormData({ ...physicalBinFormData, bin_type_id: e.target.value, bin_size_id: '' });
-                      if (e.target.value) {
-                        fetchBinSizes(parseInt(e.target.value));
+                      const value = e.target.value;
+                      setPhysicalBinFormData({ ...physicalBinFormData, bin_type_id: value, bin_size_id: '' });
+                      if (value) {
+                        fetchBinSizes(parseInt(value));
+                      } else {
+                        setBinSizesForPhysical([]);
+                        setHasFetchedSizes(false);
                       }
                     }}
                     required
@@ -295,21 +310,22 @@ export default function BinManagementPage() {
                     ))}
                   </select>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Bin Size *</label>
-                  <select
-                    className="form-control"
-                    value={physicalBinFormData.bin_size_id}
-                    onChange={(e) => setPhysicalBinFormData({ ...physicalBinFormData, bin_size_id: e.target.value })}
-                    disabled={!physicalBinFormData.bin_type_id}
-                    required
-                  >
-                    <option value="">Select bin size</option>
-                    {binSizesForPhysical.map((size) => (
-                      <option key={size.id} value={size.id}>{size.size}</option>
-                    ))}
-                  </select>
-                </div>
+                {hasFetchedSizes && binSizesForPhysical.length > 0 && (
+                  <div className="form-group">
+                    <label className="form-label">Bin Size *</label>
+                    <select
+                      className="form-control"
+                      value={physicalBinFormData.bin_size_id}
+                      onChange={(e) => setPhysicalBinFormData({ ...physicalBinFormData, bin_size_id: e.target.value })}
+                      required
+                    >
+                      <option value="">Select bin size</option>
+                      {binSizesForPhysical.map((size) => (
+                        <option key={size.id} value={size.id}>{size.size}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="form-group">
                   <label className="form-label">Assign to Supplier (Optional)</label>
                   <select
@@ -342,7 +358,13 @@ export default function BinManagementPage() {
                   />
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-                  <button type="submit" className="btn btn-primary cursor-pointer">Create Bin</button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary cursor-pointer"
+                    disabled={isFetchingSizes}
+                  >
+                    {isFetchingSizes ? 'Fetching Sizes...' : 'Create Bin'}
+                  </button>
                   <button
                     type="button"
                     className="btn btn-outline cursor-pointer"
