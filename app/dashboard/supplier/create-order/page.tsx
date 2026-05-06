@@ -506,7 +506,7 @@ export default function CreateOrderPage() {
                 </div>
               </div>
             )}
-
+          </div>
 
           {/* Location & Map */}
           <div className="dashboard-card rounded-lg p-6 bg-white shadow-sm border border-gray-100">
