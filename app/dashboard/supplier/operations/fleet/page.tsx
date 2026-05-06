@@ -30,7 +30,7 @@ export default function FleetPage() {
   const { showToast } = useToast();
   const [bins, setBins] = useState<BinItem[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Add Bin Modal State
   const [showAddModal, setShowAddModal] = useState(false);
   const [binTypes, setBinTypes] = useState<BinType[]>([]);
@@ -40,7 +40,7 @@ export default function FleetPage() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [fetchingSizes, setFetchingSizes] = useState(false);
-  
+
   const [areaPrices, setAreaPrices] = useState<{ [areaId: string]: string }>({});
   const [fetchingPrices, setFetchingPrices] = useState(false);
   const [areasList, setAreasList] = useState<any[]>([]);
@@ -53,9 +53,10 @@ export default function FleetPage() {
   const fetchBins = async () => {
     try {
       setLoading(true);
-      const response = await api.get<{ bins: BinItem[] }>('/bins/physical');
-      if (response.success && response.data?.bins) {
-        setBins(response.data.bins);
+      const response = await api.get<any>('/bins/physical');
+      if (response.success) {
+        const binsData = (response as any).bins || [];
+        setBins(binsData);
       }
     } catch (error) {
       showToast('Failed to fetch fleet data', 'error');
@@ -309,7 +310,7 @@ export default function FleetPage() {
                 </svg>
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto flex-1">
               <form id="add-bin-form" onSubmit={handleAddNewBin} className="space-y-6">
                 <div>
@@ -320,11 +321,10 @@ export default function FleetPage() {
                         key={type.id}
                         type="button"
                         onClick={() => setSelectedTypeId(type.id.toString())}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
-                          selectedTypeId === type.id.toString() 
-                            ? 'bg-green-500 text-white border-green-500' 
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${selectedTypeId === type.id.toString()
+                            ? 'bg-green-500 text-white border-green-500'
                             : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         {type.name}
                       </button>
@@ -341,11 +341,10 @@ export default function FleetPage() {
                           key={size.id}
                           type="button"
                           onClick={() => setSelectedSizeId(size.id.toString())}
-                          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
-                            selectedSizeId === size.id.toString() 
-                              ? 'bg-green-500 text-white border-green-500' 
+                          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${selectedSizeId === size.id.toString()
+                              ? 'bg-green-500 text-white border-green-500'
                               : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                          }`}
+                            }`}
                         >
                           {size.size}
                         </button>
@@ -364,7 +363,7 @@ export default function FleetPage() {
                   <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
                     <label className="block text-sm font-semibold text-gray-700 mb-3">Service Area Pricing <span className="text-red-500">*</span></label>
                     <p className="text-xs text-gray-500 mb-4">Set pricing for this bin across your service areas. At least one is required.</p>
-                    
+
                     <div className="space-y-3">
                       {areasList.map(area => (
                         <div key={area.id} className="flex items-center justify-between bg-white p-3 rounded border border-gray-200">
@@ -406,7 +405,7 @@ export default function FleetPage() {
                 </div>
               </form>
             </div>
-            
+
             <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
               <button
                 type="button"
