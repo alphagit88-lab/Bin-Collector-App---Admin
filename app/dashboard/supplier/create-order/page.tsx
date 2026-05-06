@@ -70,6 +70,8 @@ export default function CreateOrderPage() {
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [totalPrice, setTotalPrice] = useState('');
   const [binPrices, setBinPrices] = useState<any[]>([]);
+  const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
+  const [fetchingSettings, setFetchingSettings] = useState(true);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -82,10 +84,11 @@ export default function CreateOrderPage() {
 
   const fetchInitialData = async () => {
     try {
-      const [typesRes, sizesRes, categoriesRes] = await Promise.all([
-        api.get<{ binTypes: BinType[] }>('/bins/types'),
-        api.get<{ binSizes: BinSize[] }>('/supplier/bin-sizes'),
-        api.get<{ categories: ServiceCategory[] }>('/service-categories')
+      const [typesRes, sizesRes, categoriesRes, settingsRes] = await Promise.all([
+        api.get<{ binTypes: BinType[] }>('/bins/supplier/types'),
+        api.get<{ binSizes: BinSize[] }>('/bins/supplier/sizes'),
+        api.get<{ categories: ServiceCategory[] }>('/service-categories'),
+        api.get<{ settings: any[] }>('/settings')
       ]);
 
       if (typesRes.success && typesRes.data) {
@@ -97,10 +100,18 @@ export default function CreateOrderPage() {
       if (categoriesRes.success && categoriesRes.data) {
         setServiceCategories(categoriesRes.data.categories);
       }
+      if (settingsRes.success && settingsRes.data) {
+        const settingsMap: Record<string, string> = {};
+        settingsRes.data.settings.forEach((s: any) => {
+          settingsMap[s.key] = s.value;
+        });
+        setSystemSettings(settingsMap);
+      }
     } catch (error) {
       showToast('Failed to load initial data', 'error');
     } finally {
       setFetchingData(false);
+      setFetchingSettings(false);
     }
   };
 
@@ -137,6 +148,22 @@ export default function CreateOrderPage() {
     }
   };
 
+  useEffect(() => {
+    // Update individual bin prices when binPrices (from location) changes
+    if (binPrices.length > 0) {
+      const updatedBins = selectedBins.map(bin => {
+        if (bin.bin_size_id) {
+          const priceObj = binPrices.find(p => p.bin_size_id === bin.bin_size_id);
+          if (priceObj) {
+            return { ...bin, price: priceObj.admin_final_price.toString() };
+          }
+        }
+        return bin;
+      });
+      setSelectedBins(updatedBins);
+    }
+  }, [binPrices]);
+
   const handleSearchAddress = async () => {
     if (!location) return;
     try {
@@ -154,10 +181,11 @@ export default function CreateOrderPage() {
         setLocation(data[0].display_name);
         fetchBinPrices(newLat, newLon);
       } else {
-        showToast('Location not found', 'error');
+        // Fallback for when location is entered but not specifically searched on map
+        // Supplier can still create the order with just the location string
       }
     } catch (error) {
-      showToast('Failed to search location', 'error');
+      console.error('Failed to search location:', error);
     }
   };
 
@@ -181,15 +209,56 @@ export default function CreateOrderPage() {
       newBins[index].price = '';
     }
 
-    if (field === 'bin_size_id' && value) {
-      const priceObj = binPrices.find(p => p.bin_size_id === value);
-      if (priceObj) {
-        newBins[index].price = priceObj.admin_final_price.toString();
+    if (field === 'bin_size_id' || field === 'bin_type_id') {
+      const sizeId = field === 'bin_size_id' ? value : null;
+      if (sizeId) {
+        const priceObj = binPrices.find(p => p.bin_size_id === sizeId);
+        if (priceObj) {
+          newBins[index].price = priceObj.admin_final_price.toString();
+        }
       }
     }
 
     setSelectedBins(newBins);
   };
+
+  const calculateBreakdown = () => {
+    if (!startDate || !endDate) return null;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const durationDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+
+    const commercialLimit = systemSettings['commercial_duration_limit'];
+    const residentialLimit = systemSettings['residential_duration_limit'];
+    const dailyRateStr = systemSettings['additional_day_charge'];
+
+    if (!commercialLimit || !residentialLimit || !dailyRateStr) return null;
+
+    const limitDays = serviceCategory === 'commercial' ? parseInt(commercialLimit) : parseInt(residentialLimit);
+    const dailyRate = parseFloat(dailyRateStr);
+
+    const exceededDays = durationDays > limitDays ? durationDays - limitDays : 0;
+    const additionalCharge = exceededDays * dailyRate;
+
+    const basePrice = selectedBins.reduce((acc, b) => {
+      const price = binPrices.find(p => p.bin_size_id === b.bin_size_id)?.admin_final_price;
+      return acc + (parseFloat(price || '0') * (b.quantity || 1));
+    }, 0);
+
+    return {
+      durationDays,
+      limitDays,
+      exceededDays,
+      dailyRate,
+      additionalCharge,
+      basePrice,
+      total: basePrice + additionalCharge
+    };
+  };
+
+  const breakdown = calculateBreakdown();
 
   const toggleService = (id: number) => {
     if (selectedServices.includes(id)) {
@@ -208,37 +277,26 @@ export default function CreateOrderPage() {
 
     setLoading(true);
     try {
-      const payload: any = {
+      const body = {
         customer_name: customerName,
         customer_phone: customerPhone,
         service_category: serviceCategory,
+        bins: selectedBins.map(b => ({
+          bin_type_id: b.bin_type_id,
+          bin_size_id: b.bin_size_id,
+          quantity: b.quantity,
+          price: b.price || '0',
+        })),
         location,
         latitude,
         longitude,
         start_date: startDate,
         end_date: endDate,
-        instructions
+        instructions,
+        payment_method: 'cash'
       };
 
-      if (serviceCategory === 'service') {
-        if (selectedServices.length === 0) {
-          showToast('Please select at least one service', 'error');
-          setLoading(false);
-          return;
-        }
-        payload.selected_services = selectedServices;
-        payload.total_price = totalPrice || '0';
-      } else {
-        const validBins = selectedBins.filter(b => b.bin_type_id !== 0);
-        if (validBins.length === 0) {
-          showToast('Please select at least one bin', 'error');
-          setLoading(false);
-          return;
-        }
-        payload.bins = validBins;
-      }
-
-      const response = await api.post('/bookings/supplier/create', payload);
+      const response = await api.post('/bookings/supplier/create', body);
 
       if (response.success) {
         showToast(response.message || 'Order created successfully', 'success');
@@ -351,20 +409,22 @@ export default function CreateOrderPage() {
                         {binTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                       </select>
                     </div>
-                    <div className="flex-1 min-w-[150px]">
-                      <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Size</label>
-                      <select
-                        value={bin.bin_size_id || ''}
-                        onChange={(e) => updateBinRow(index, 'bin_size_id', e.target.value ? parseInt(e.target.value) : null)}
-                        className="w-full px-3 py-2 border rounded-md text-sm outline-none"
-                        disabled={!bin.bin_type_id}
-                      >
-                        <option value="">Select Size</option>
-                        {binSizes.filter(s => s.bin_type_id === bin.bin_type_id).map(s => (
-                          <option key={s.id} value={s.id}>{s.size}</option>
-                        ))}
-                      </select>
-                    </div>
+                    {(!bin.bin_type_id || binSizes.some(s => s.bin_type_id === bin.bin_type_id)) && (
+                      <div className="flex-1 min-w-[150px]">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Size</label>
+                        <select
+                          value={bin.bin_size_id || ''}
+                          onChange={(e) => updateBinRow(index, 'bin_size_id', e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full px-3 py-2 border rounded-md text-sm outline-none"
+                          disabled={!bin.bin_type_id}
+                        >
+                          <option value="">Select Size</option>
+                          {binSizes.filter(s => s.bin_type_id === bin.bin_type_id).map(s => (
+                            <option key={s.id} value={s.id}>{s.size}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div className="w-20">
                       <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Qty</label>
                       <input
@@ -375,14 +435,6 @@ export default function CreateOrderPage() {
                         className="w-full px-3 py-2 border rounded-md text-sm outline-none"
                       />
                     </div>
-                    {bin.price && (
-                      <div className="flex flex-col mb-1.5 min-w-[100px]">
-                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Price</label>
-                        <div className="text-green-600 font-bold text-lg h-10 flex items-center">
-                          ${bin.price}
-                        </div>
-                      </div>
-                    )}
                     <button
                       type="button"
                       onClick={() => removeBinRow(index)}
@@ -454,7 +506,7 @@ export default function CreateOrderPage() {
                 </div>
               </div>
             )}
-          </div>
+
 
           {/* Location & Map */}
           <div className="dashboard-card rounded-lg p-6 bg-white shadow-sm border border-gray-100">
@@ -470,7 +522,7 @@ export default function CreateOrderPage() {
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
-                  placeholder="Enter full address or select on map"
+                  placeholder="Enter full address"
                   required
                 />
                 <button
@@ -478,9 +530,15 @@ export default function CreateOrderPage() {
                   onClick={handleSearchAddress}
                   className="bg-gray-100 hover:bg-gray-200 px-4 rounded-md border text-sm font-medium transition-colors"
                 >
-                  Search
+                  Locate
                 </button>
               </div>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-xs text-gray-500 italic">
+                Tip: You can use the map below to pinpoint the exact delivery location if needed, but it's optional.
+              </p>
             </div>
 
             <div className="h-[300px] bg-gray-100 rounded-md overflow-hidden relative">
@@ -534,6 +592,53 @@ export default function CreateOrderPage() {
               </div>
             </div>
           </div>
+
+          {/* Payment Method */}
+          <div className="dashboard-card rounded-lg p-6 bg-white shadow-sm border border-gray-100">
+            <h2 className="text-lg font-semibold mb-4 text-gray-800 flex items-center border-b pb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-green-600"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+              Payment Method
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                <div className="w-full px-4 py-2 bg-gray-50 border rounded-md text-gray-700 font-medium h-10 flex items-center">
+                  Cash on Delivery
+                </div>
+                <p className="text-xs text-gray-500 mt-1 italic">Supplier-created orders are cash only.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Price Breakdown */}
+          {serviceCategory !== 'service' && breakdown && (
+            <div className="dashboard-card rounded-lg p-6 bg-white shadow-sm border border-gray-100 mb-6">
+              <h3 className="text-sm font-bold text-green-800 uppercase mb-3 border-b border-gray-200 pb-1 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                Price Breakdown
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Base Price ({breakdown.limitDays} Days):</span>
+                  <span className="font-semibold text-gray-800">${breakdown.basePrice.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Duration:</span>
+                  <span className="font-semibold text-gray-800">{breakdown.durationDays} Day(s)</span>
+                </div>
+                {breakdown.exceededDays > 0 && (
+                  <div className="flex justify-between text-sm text-red-600">
+                    <span>Extra Days ({breakdown.exceededDays} × ${breakdown.dailyRate}):</span>
+                    <span className="font-semibold">+${breakdown.additionalCharge.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="border-t border-green-200 pt-2 flex justify-between items-center">
+                  <span className="font-bold text-gray-800">Estimated Total:</span>
+                  <span className="text-xl font-bold text-green-600">${breakdown.total.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end pt-4">
             <button
