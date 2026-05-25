@@ -40,7 +40,7 @@ function SupplierBinPricingContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [binTypes, setBinTypes] = useState<BinType[]>([]);
-  const [binSizes, setBinSizes] = useState<BinSize[]>([]);
+  const [allBinSizes, setAllBinSizes] = useState<BinSize[]>([]);
   const [configuredBins, setConfiguredBins] = useState<ServiceAreaBin[]>([]);
   const [prices, setPrices] = useState<Record<string, string>>({});
 
@@ -56,15 +56,15 @@ function SupplierBinPricingContent() {
     try {
       setLoading(true);
 
-      const typesRes = await api.get<{ binTypes: any[] }>('/bins/types');
-      const sizesRes = await api.get<{ binSizes: any[] }>('/supplier/bin-sizes');
+      const typesRes = await api.get<{ binTypes: any[] }>('/bins/supplier/types');
+      const sizesRes = await api.get<{ binSizes: any[] }>('/bins/supplier/sizes');
       const configRes = await api.get<{ bins: any[] }>(`/supplier/service-areas/${serviceAreaId}/bins`);
 
       if (typesRes.success && sizesRes.success && configRes.success && 
           typesRes.data && sizesRes.data && configRes.data) {
         
         setBinTypes(typesRes.data.binTypes);
-        setBinSizes(sizesRes.data.binSizes);
+        setAllBinSizes(sizesRes.data.binSizes);
         setConfiguredBins(configRes.data.bins);
 
         const initialPrices: Record<string, string> = {};
@@ -168,7 +168,7 @@ function SupplierBinPricingContent() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {binTypes.map(type => {
-            const sizesForType = binSizes.filter(s => s.bin_type_name === type.name || s.bin_type_id === type.id);
+            const sizesForType = allBinSizes.filter(s => s.bin_type_name === type.name || s.bin_type_id === type.id);
             
             const itemsToRender = sizesForType.length > 0 
               ? sizesForType.map(s => ({ type, size: s }))

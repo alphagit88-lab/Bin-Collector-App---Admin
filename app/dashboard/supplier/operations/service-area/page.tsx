@@ -22,8 +22,8 @@ const mapContainerStyle = {
 };
 
 const defaultCenter = {
-  lat: -37.8136,
-  lng: 144.9631
+  lat: 43.6532,
+  lng: -79.3832
 };
 
 export default function ServiceAreaPage() {

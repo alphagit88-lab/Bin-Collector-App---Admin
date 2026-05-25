@@ -67,7 +67,7 @@ export default function FleetPage() {
 
   const fetchTypes = async () => {
     try {
-      const response = await api.get<{ binTypes: BinType[] }>('/bins/types');
+      const response = await api.get<{ binTypes: BinType[] }>('/bins/supplier/types');
       if (response.success && response.data) {
         setBinTypes(response.data.binTypes);
       }
@@ -79,7 +79,7 @@ export default function FleetPage() {
   const fetchSizes = async (typeId: number) => {
     setFetchingSizes(true);
     try {
-      const response = await api.get<{ binSizes: BinSize[] }>(`/bins/sizes?typeId=${typeId}`);
+      const response = await api.get<{ binSizes: BinSize[] }>(`/bins/supplier/sizes?binTypeId=${typeId}`);
       if (response.success && response.data) {
         setBinSizes(response.data.binSizes);
       }
@@ -100,8 +100,11 @@ export default function FleetPage() {
 
     setFetchingPrices(true);
     try {
-      const query = selectedSizeId ? `?binSizeId=${selectedSizeId}` : '';
-      const response = await api.get<{ areas: any[] }>(`/bins/supplier-prices/${selectedTypeId}${query}`);
+      let url = `/bins/supplier-prices?binTypeId=${selectedTypeId}`;
+      if (selectedSizeId) {
+        url += `&binSizeId=${selectedSizeId}`;
+      }
+      const response = await api.get<{ areas: any[] }>(url);
       if (response.success && response.data?.areas) {
         setAreasList(response.data.areas);
         const prices: { [key: string]: string } = {};
