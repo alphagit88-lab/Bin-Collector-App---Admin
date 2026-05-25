@@ -12,6 +12,7 @@ interface Customer {
   email?: string;
   role: 'customer';
   canViewBilling: boolean;
+  deleteRequest?: boolean;
   created_at: string;
 }
 
@@ -166,6 +167,7 @@ export default function CustomersPage() {
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Billing Access</th>
+                <th>Delete Request</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -173,7 +175,7 @@ export default function CustomersPage() {
             <tbody>
               {customers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
                     No customers found
                   </td>
                 </tr>
@@ -207,6 +209,13 @@ export default function CustomersPage() {
                           transition: 'left 0.2s'
                         }} />
                       </div>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {customer.deleteRequest ? (
+                        <span style={{ color: '#EF4444', fontWeight: 600 }}>Requested</span>
+                      ) : (
+                        <span style={{ color: 'var(--color-text-secondary)' }}>-</span>
+                      )}
                     </td>
                     <td>{new Date(customer.created_at).toLocaleDateString()}</td>
                     <td>

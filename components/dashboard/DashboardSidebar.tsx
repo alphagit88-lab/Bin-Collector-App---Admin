@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSocket } from '@/contexts/SocketContext';
-import { api } from '@/lib/api';
+import { api, API_BASE_URL } from '@/lib/api';
 
 interface NavItem {
   label: string;
@@ -17,7 +17,7 @@ interface NavItem {
 export default function DashboardSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const { socket } = useSocket();
   const [isOpen, setIsOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
@@ -405,6 +405,10 @@ export default function DashboardSidebar() {
   }, [socket, user?.role]);
 
   useEffect(() => {
+    refreshUser();
+  }, []);
+
+  useEffect(() => {
     if (user?.role !== 'admin' && user?.role !== 'supplier') return;
     const interval = setInterval(fetchUnreadMessageCount, 15000);
     return () => clearInterval(interval);
@@ -441,7 +445,7 @@ export default function DashboardSidebar() {
           <div className="p-6" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.3)' }}>
             <Link href="/dashboard" className="flex items-center justify-center group">
               <i className="fas fa-recycle text-white text-2xl mr-3"></i>
-              <span className="text-lg font-semibold text-white tracking-tight">BinRental</span>
+              <span className="text-lg font-semibold text-white tracking-tight">Bin Drop</span>
             </Link>
           </div>
 
@@ -558,8 +562,20 @@ export default function DashboardSidebar() {
           {/* User Section */}
           <div className="p-4" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
             <div className="flex items-center space-x-3 mb-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" style={{ background: 'rgba(255, 255, 255, 0.2)' }}>
-                {user ? getInitials(user.name) : 'U'}
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.2)' }}>
+                {user?.profilePhoto ? (
+                  <img
+                    src={
+                      user.profilePhoto.startsWith('http')
+                        ? user.profilePhoto
+                        : `${API_BASE_URL}${user.profilePhoto.startsWith('/') ? '' : '/'}${user.profilePhoto}`
+                    }
+                    alt={user.name}
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                ) : (
+                  user ? getInitials(user.name) : 'U'
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate text-white">

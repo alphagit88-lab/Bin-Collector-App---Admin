@@ -13,6 +13,7 @@ interface User {
   role: 'driver';
   supplierId?: number;
   supplier_name?: string;
+  deleteRequest?: boolean;
   created_at: string;
 }
 
@@ -165,6 +166,7 @@ export default function DriversPage() {
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Assigned Supplier</th>
+                <th>Delete Request</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -172,7 +174,7 @@ export default function DriversPage() {
             <tbody>
               {drivers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
                     No drivers found
                   </td>
                 </tr>
@@ -184,6 +186,13 @@ export default function DriversPage() {
                     <td>{driver.email || '-'}</td>
                     <td>
                         {suppliers.find(s => s.id === driver.supplierId)?.name || <span className="text-gray-400">Not Assigned</span>}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {driver.deleteRequest ? (
+                        <span style={{ color: '#EF4444', fontWeight: 600 }}>Requested</span>
+                      ) : (
+                        <span style={{ color: 'var(--color-text-secondary)' }}>-</span>
+                      )}
                     </td>
                     <td>{new Date(driver.created_at).toLocaleDateString()}</td>
                     <td>

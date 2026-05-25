@@ -28,6 +28,8 @@ interface ServiceRequest {
   order_items_count?: number;
   bill_id?: string;
   attachment_url?: string;
+  additional_images?: string[] | string;
+  delivery_photo_url?: string;
 }
 
 export default function BookingsPage() {
@@ -35,7 +37,7 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [selectedAttachment, setSelectedAttachment] = useState<string | null>(null);
+  const [selectedAttachments, setSelectedAttachments] = useState<string[] | null>(null);
 
   useEffect(() => {
     fetchBookings();
@@ -178,7 +180,7 @@ export default function BookingsPage() {
                 <th>Status</th>
                 <th>Payment</th>
                 <th>Bill</th>
-                <th>Attachment</th>
+                <th>Attachments</th>
                 <th>Created</th>
               </tr>
             </thead>
@@ -267,24 +269,38 @@ export default function BookingsPage() {
                       )}
                     </td>
                     <td>
-                      {booking.attachment_url ? (
-                        <button
-                          onClick={() => setSelectedAttachment(booking.attachment_url!)}
-                          className="cursor-pointer hover:underline"
-                          style={{
-                            color: '#10B981',
-                            background: 'none',
-                            border: 'none',
-                            padding: 0,
-                            fontWeight: 500,
-                            textAlign: 'left'
-                          }}
-                        >
-                          View
-                        </button>
-                      ) : (
-                        <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>-</span>
-                      )}
+                      {(() => {
+                        let images: string[] = [];
+                        if (booking.attachment_url) images.push(booking.attachment_url);
+                        if (booking.additional_images) {
+                          let parsed: string[] = [];
+                          if (Array.isArray(booking.additional_images)) parsed = booking.additional_images;
+                          else if (typeof booking.additional_images === 'string') {
+                            try { parsed = JSON.parse(booking.additional_images); } catch(e) {}
+                          }
+                          images = [...images, ...parsed];
+                        }
+                        if (booking.delivery_photo_url) images.push(booking.delivery_photo_url);
+                        
+                        return images.length > 0 ? (
+                          <button
+                            onClick={() => setSelectedAttachments(images)}
+                            className="cursor-pointer hover:underline"
+                            style={{
+                              color: '#10B981',
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              fontWeight: 500,
+                              textAlign: 'left'
+                            }}
+                          >
+                            View ({images.length})
+                          </button>
+                        ) : (
+                          <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>-</span>
+                        );
+                      })()}
                     </td>
                     <td>{new Date(booking.created_at).toLocaleDateString()}</td>
                   </tr>
@@ -295,11 +311,11 @@ export default function BookingsPage() {
         </div>
       </div >
 
-      {/* Attachment Modal */}
-      {selectedAttachment && (
+      {/* Attachments Modal */}
+      {selectedAttachments && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-8 md:p-12 lg:p-20 bg-black/70 backdrop-blur-sm"
-          onClick={() => setSelectedAttachment(null)}
+          onClick={() => setSelectedAttachments(null)}
         >
           <div
             className="relative max-w-4xl w-full max-h-[90vh] bg-white rounded-[2.5rem] overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col border border-gray-100"
@@ -307,11 +323,11 @@ export default function BookingsPage() {
           >
             <div className="p-6 md:p-8 border-b flex justify-between items-center bg-white/50 backdrop-blur-md sticky top-0 z-10">
               <div>
-                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Attachment Preview</h3>
-                <p className="text-sm text-gray-500 font-medium">Customer uploaded booking photo</p>
+                <h3 className="text-2xl font-black text-gray-900 tracking-tight">Attachments Preview</h3>
+                <p className="text-sm text-gray-500 font-medium">View all uploaded photos</p>
               </div>
               <button
-                onClick={() => setSelectedAttachment(null)}
+                onClick={() => setSelectedAttachments(null)}
                 className="p-3 hover:bg-gray-100 rounded-2xl transition-all text-gray-400 hover:text-gray-900 hover:rotate-90 duration-300"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -319,16 +335,22 @@ export default function BookingsPage() {
                 </svg>
               </button>
             </div>
-            <div className="p-10 flex justify-center bg-gray-50/80 overflow-y-auto flex-1">
-              <img
-                src={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}${selectedAttachment}`}
-                alt="Attachment"
-                className="max-h-full w-auto object-contain rounded-3xl shadow-2xl border-4 border-white"
-              />
+            <div className="p-10 bg-gray-50/80 overflow-y-auto flex-1">
+              <div className="flex flex-col gap-6">
+                {selectedAttachments.map((img, idx) => (
+                  <div key={idx} className="flex justify-center">
+                    <img
+                      src={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000'}${img}`}
+                      alt={`Attachment ${idx + 1}`}
+                      className="max-w-full max-h-[70vh] w-auto object-contain rounded-3xl shadow-2xl border-4 border-white"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="p-6 md:p-8 border-t flex justify-end bg-white/50 backdrop-blur-md sticky bottom-0 z-10">
               <button
-                onClick={() => setSelectedAttachment(null)}
+                onClick={() => setSelectedAttachments(null)}
                 className="px-10 py-4 bg-gray-900 text-white rounded-2xl font-black tracking-wide hover:bg-black transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl hover:shadow-black/20"
               >
                 CLOSE PREVIEW

@@ -76,7 +76,7 @@ export default function ServiceAreaPage() {
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(newCity)}&format=json&limit=1&addressdetails=1&countrycodes=ca`,
-        { headers: { 'User-Agent': 'BinRentalAppWeb/1.0' } }
+        { headers: { 'User-Agent': 'BinDropAppWeb/1.0' } }
       );
       const data = await response.json();
       if (data && data.length > 0) {
@@ -111,7 +111,7 @@ export default function ServiceAreaPage() {
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
-        { headers: { 'User-Agent': 'BinRentalAppWeb/1.0' } }
+        { headers: { 'User-Agent': 'BinDropAppWeb/1.0' } }
       );
       const data = await response.json();
       if (data && data.display_name) {

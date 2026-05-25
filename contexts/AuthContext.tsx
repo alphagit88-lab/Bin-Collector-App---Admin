@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
@@ -13,6 +13,7 @@ interface User {
   supplierType?: 'commercial' | 'residential' | 'commercial_residential' | null;
   supplierId?: number;
   canViewBilling?: boolean;
+  profilePhoto?: string;
 }
 
 interface AuthContextType {
@@ -29,6 +30,7 @@ interface AuthContextType {
     supplierType?: 'commercial' | 'residential' | 'commercial_residential'
   ) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -80,6 +82,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(response.data.user);
         setToken(response.data.token);
         localStorage.setItem('token', response.data.token);
+        
+        // Refresh user to get latest profile photo
+        try {
+          const refreshResponse = await api.get<{ user: User }>('/auth/me');
+          if (refreshResponse.success && refreshResponse.data) {
+            setUser(refreshResponse.data.user);
+          }
+        } catch {}
+        
         return { success: true };
       } else {
         return { success: false, message: response.message || 'Login failed' };
@@ -114,6 +125,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(response.data.user);
         setToken(response.data.token);
         localStorage.setItem('token', response.data.token);
+        
+        // Refresh user to get latest profile photo
+        try {
+          const refreshResponse = await api.get<{ user: User }>('/auth/me');
+          if (refreshResponse.success && refreshResponse.data) {
+            setUser(refreshResponse.data.user);
+          }
+        } catch {}
+        
         return { success: true };
       } else {
         return { success: false, message: response.message || 'Signup failed' };
@@ -126,6 +146,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshUser = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await api.get<{ user: User }>('/auth/me');
+      if (response.success && response.data) {
+        setUser(response.data.user);
+      }
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+    }
+  }, [token]);
+
   const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
@@ -134,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

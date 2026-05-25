@@ -13,7 +13,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "BinRental - Admin Dashboard",
+  title: "Bin Drop - Admin Dashboard",
   description: "Waste Management Platform - Admin Dashboard",
 };
 

@@ -12,6 +12,7 @@ interface Supplier {
   email?: string;
   role: 'supplier';
   supplierType?: 'commercial' | 'residential' | 'commercial_residential' | null;
+  deleteRequest?: boolean;
   created_at: string;
 }
 
@@ -149,6 +150,7 @@ export default function SuppliersPage() {
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Type</th>
+                <th>Delete Request</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -156,7 +158,7 @@ export default function SuppliersPage() {
             <tbody>
               {suppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
                     No suppliers found
                   </td>
                 </tr>
@@ -174,6 +176,13 @@ export default function SuppliersPage() {
                         : supplier.supplierType === 'commercial_residential'
                         ? 'Commercial / Residential'
                         : '-'}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {supplier.deleteRequest ? (
+                        <span style={{ color: '#EF4444', fontWeight: 600 }}>Requested</span>
+                      ) : (
+                        <span style={{ color: 'var(--color-text-secondary)' }}>-</span>
+                      )}
                     </td>
                     <td>{new Date(supplier.created_at).toLocaleDateString()}</td>
                     <td>
