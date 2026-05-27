@@ -72,6 +72,8 @@ export default function CreateOrderPage() {
   const [binPrices, setBinPrices] = useState<any[]>([]);
   const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
   const [fetchingSettings, setFetchingSettings] = useState(true);
+  const [calculatedPrice, setCalculatedPrice] = useState<any>(null);
+  const [fetchingCalculatedPrice, setFetchingCalculatedPrice] = useState(false);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -148,6 +150,50 @@ export default function CreateOrderPage() {
     }
   };
 
+  const fetchCalculatedPrice = async () => {
+    try {
+      if (
+        serviceCategory === 'service' ||
+        !selectedBins.some(b => b.bin_size_id) ||
+        !location ||
+        (serviceCategory === 'residential' && (!startDate || !endDate))
+      ) {
+        setCalculatedPrice(null);
+        return;
+      }
+
+      setFetchingCalculatedPrice(true);
+
+      const requestBody = {
+        service_category: serviceCategory,
+        bins: selectedBins.filter(b => b.bin_size_id).map(b => ({
+          bin_type_id: b.bin_type_id,
+          bin_size_id: b.bin_size_id,
+          quantity: b.quantity
+        })),
+        location,
+        start_date: startDate,
+        end_date: endDate,
+        latitude,
+        longitude
+      };
+
+      const response = await api.post('/bookings/calculate-price', requestBody);
+
+      if (response.success && response.data) {
+        setCalculatedPrice(response.data);
+      } else {
+        console.error('Calculate price failed:', response.message);
+        setCalculatedPrice(null);
+      }
+    } catch (error) {
+      console.error('Error calculating price:', error);
+      setCalculatedPrice(null);
+    } finally {
+      setFetchingCalculatedPrice(false);
+    }
+  };
+
   useEffect(() => {
     // Update individual bin prices when binPrices (from location) changes
     if (binPrices.length > 0) {
@@ -163,6 +209,10 @@ export default function CreateOrderPage() {
       setSelectedBins(updatedBins);
     }
   }, [binPrices]);
+
+  useEffect(() => {
+    fetchCalculatedPrice();
+  }, [selectedBins, location, startDate, endDate, latitude, longitude, serviceCategory]);
 
   const handleSearchAddress = async () => {
     if (!location) return;
@@ -222,43 +272,7 @@ export default function CreateOrderPage() {
     setSelectedBins(newBins);
   };
 
-  const calculateBreakdown = () => {
-    if (!startDate || !endDate) return null;
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const durationDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
-
-    const commercialLimit = systemSettings['commercial_duration_limit'];
-    const residentialLimit = systemSettings['residential_duration_limit'];
-    const dailyRateStr = systemSettings['additional_day_charge'];
-
-    if (!commercialLimit || !residentialLimit || !dailyRateStr) return null;
-
-    const limitDays = serviceCategory === 'commercial' ? parseInt(commercialLimit) : parseInt(residentialLimit);
-    const dailyRate = parseFloat(dailyRateStr);
-
-    const exceededDays = durationDays > limitDays ? durationDays - limitDays : 0;
-    const additionalCharge = exceededDays * dailyRate;
-
-    const basePrice = selectedBins.reduce((acc, b) => {
-      const price = binPrices.find(p => p.bin_size_id === b.bin_size_id)?.admin_final_price;
-      return acc + (parseFloat(price || '0') * (b.quantity || 1));
-    }, 0);
-
-    return {
-      durationDays,
-      limitDays,
-      exceededDays,
-      dailyRate,
-      additionalCharge,
-      basePrice,
-      total: basePrice + additionalCharge
-    };
-  };
-
-  const breakdown = calculateBreakdown();
 
   const toggleService = (id: number) => {
     if (selectedServices.includes(id)) {
@@ -611,32 +625,44 @@ export default function CreateOrderPage() {
           </div>
 
           {/* Price Breakdown */}
-          {serviceCategory !== 'service' && breakdown && (
+          {serviceCategory !== 'service' && calculatedPrice && (
             <div className="dashboard-card rounded-lg p-6 bg-white shadow-sm border border-gray-100 mb-6">
               <h3 className="text-sm font-bold text-green-800 uppercase mb-3 border-b border-gray-200 pb-1 flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                 Price Breakdown
               </h3>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Base Price ({breakdown.limitDays} Days):</span>
-                  <span className="font-semibold text-gray-800">${breakdown.basePrice.toFixed(2)}</span>
+              {fetchingCalculatedPrice ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Duration:</span>
-                  <span className="font-semibold text-gray-800">{breakdown.durationDays} Day(s)</span>
-                </div>
-                {breakdown.exceededDays > 0 && (
-                  <div className="flex justify-between text-sm text-red-600">
-                    <span>Extra Days ({breakdown.exceededDays} × ${breakdown.dailyRate}):</span>
-                    <span className="font-semibold">+${breakdown.additionalCharge.toFixed(2)}</span>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Subtotal:</span>
+                    <span className="font-semibold text-gray-800">${calculatedPrice.subtotal.toFixed(2)}</span>
                   </div>
-                )}
-                <div className="border-t border-green-200 pt-2 flex justify-between items-center">
-                  <span className="font-bold text-gray-800">Estimated Total:</span>
-                  <span className="text-xl font-bold text-green-600">${breakdown.total.toFixed(2)}</span>
+                  {calculatedPrice.duration_days && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Duration:</span>
+                      <span className="font-semibold text-gray-800">{calculatedPrice.duration_days} Day(s)</span>
+                    </div>
+                  )}
+                  {calculatedPrice.additional_duration_charge > 0 && (
+                    <div className="flex justify-between text-sm text-red-600">
+                      <span>Extra Days ({calculatedPrice.exceeded_days} day(s)):</span>
+                      <span className="font-semibold">+${calculatedPrice.additional_duration_charge.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">GST ({calculatedPrice.gst_rate}%):</span>
+                    <span className="font-semibold text-gray-800">${calculatedPrice.gst_amount.toFixed(2)}</span>
+                  </div>
+                  <div className="border-t border-green-200 pt-2 flex justify-between items-center">
+                    <span className="font-bold text-gray-800">Estimated Total:</span>
+                    <span className="text-xl font-bold text-green-600">${calculatedPrice.total.toFixed(2)}</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
