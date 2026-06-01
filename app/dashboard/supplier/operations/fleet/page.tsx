@@ -67,7 +67,7 @@ export default function FleetPage() {
 
   const fetchTypes = async () => {
     try {
-      const response = await api.get<{ binTypes: BinType[] }>('/bins/supplier/types');
+      const response = await api.get<{ binTypes: BinType[] }>('/bins/types');
       if (response.success && response.data) {
         setBinTypes(response.data.binTypes);
       }
@@ -79,7 +79,7 @@ export default function FleetPage() {
   const fetchSizes = async (typeId: number) => {
     setFetchingSizes(true);
     try {
-      const response = await api.get<{ binSizes: BinSize[] }>(`/bins/supplier/sizes?binTypeId=${typeId}`);
+      const response = await api.get<{ binSizes: BinSize[] }>(`/bins/sizes?binTypeId=${typeId}`);
       if (response.success && response.data) {
         setBinSizes(response.data.binSizes);
       }
