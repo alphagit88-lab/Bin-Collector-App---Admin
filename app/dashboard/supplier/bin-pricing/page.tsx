@@ -56,8 +56,8 @@ function SupplierBinPricingContent() {
     try {
       setLoading(true);
 
-      const typesRes = await api.get<{ binTypes: any[] }>('/bins/supplier/types');
-      const sizesRes = await api.get<{ binSizes: any[] }>('/bins/supplier/sizes');
+      const typesRes = await api.get<{ binTypes: any[] }>('/bins/types');
+      const sizesRes = await api.get<{ binSizes: any[] }>('/bins/sizes');
       const configRes = await api.get<{ bins: any[] }>(`/supplier/service-areas/${serviceAreaId}/bins`);
 
       if (typesRes.success && sizesRes.success && configRes.success && 
