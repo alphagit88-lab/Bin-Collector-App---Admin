@@ -38,6 +38,8 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedAttachments, setSelectedAttachments] = useState<string[] | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<ServiceRequest | null>(null);
 
   useEffect(() => {
     fetchBookings();
@@ -93,6 +95,23 @@ export default function BookingsPage() {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  const handleCancel = async () => {
+    if (!bookingToCancel) return;
+    try {
+      const response = await api.delete(`/bookings/${bookingToCancel.id}`);
+      if (response.success) {
+        showToast('Order cancelled successfully', 'success');
+        setShowCancelModal(false);
+        setBookingToCancel(null);
+        fetchBookings();
+      } else {
+        showToast(response.message || 'Failed to cancel order', 'error');
+      }
+    } catch (error) {
+      showToast('Failed to cancel order', 'error');
+    }
   };
 
   if (loading) {
@@ -182,12 +201,13 @@ export default function BookingsPage() {
                 <th>Bill</th>
                 <th>Attachments</th>
                 <th>Created</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {bookings.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan={12} style={{ textAlign: 'center', padding: '2rem' }}>
                     No bookings found
                   </td>
                 </tr>
@@ -303,6 +323,19 @@ export default function BookingsPage() {
                       })()}
                     </td>
                     <td>{new Date(booking.created_at).toLocaleDateString()}</td>
+                    <td>
+                      {booking.status !== 'cancelled' && (
+                        <button
+                          className="btn btn-danger btn-sm cursor-pointer"
+                          onClick={() => {
+                            setBookingToCancel(booking);
+                            setShowCancelModal(true);
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}
@@ -354,6 +387,45 @@ export default function BookingsPage() {
                 className="px-10 py-4 bg-gray-900 text-white rounded-2xl font-black tracking-wide hover:bg-black transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl hover:shadow-black/20"
               >
                 CLOSE PREVIEW
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }} onClick={() => setShowCancelModal(false)}>
+          <div className="card" style={{
+            maxWidth: '500px',
+            width: '90%',
+          }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ marginBottom: '1.5rem' }}>Cancel Order</h2>
+            <p style={{ marginBottom: '1.5rem' }}>Are you sure you want to cancel this order?</p>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <button
+                className="btn btn-danger cursor-pointer"
+                onClick={handleCancel}
+              >
+                Cancel Order
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline cursor-pointer"
+                onClick={() => setShowCancelModal(false)}
+              >
+                Close
               </button>
             </div>
           </div>

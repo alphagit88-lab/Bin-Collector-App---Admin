@@ -367,12 +367,14 @@ select,
 .table-container {
   background: white;
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   box-shadow: var(--shadow);
 }
 
 .table {
   width: 100%;
+  min-width: 1200px;
   border-collapse: collapse;
 }
 
