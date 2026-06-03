@@ -51,6 +51,9 @@ export default function CreateOrderPage() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [serviceCategory, setServiceCategory] = useState('residential');
   const [location, setLocation] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [startDate, setStartDate] = useState('');
@@ -115,6 +118,52 @@ export default function CreateOrderPage() {
       setFetchingData(false);
       setFetchingSettings(false);
     }
+  };
+
+  const fetchLocationSuggestions = async (query: string) => {
+    if (!query || query.length < 3) {
+      setLocationSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=ca`,
+        { headers: { 'User-Agent': 'BinDropAppWeb/1.0' } }
+      );
+      const data = await response.json();
+      setLocationSuggestions(data);
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error('Suggestions error:', error);
+      setLocationSuggestions([]);
+    }
+  };
+
+  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setLocation(value);
+    
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    
+    const timer = setTimeout(() => {
+      fetchLocationSuggestions(value);
+    }, 500);
+    
+    setDebounceTimer(timer);
+  };
+
+  const selectSuggestion = async (suggestion: any) => {
+    setLocation(suggestion.display_name);
+    setShowSuggestions(false);
+    const newLat = parseFloat(suggestion.lat);
+    const newLon = parseFloat(suggestion.lon);
+    setLatitude(newLat);
+    setLongitude(newLon);
+    setMapCenter({ lat: newLat, lng: newLon });
+    fetchBinPrices(newLat, newLon);
   };
 
   const handleMapClick = async (e: google.maps.MapMouseEvent) => {
@@ -530,22 +579,43 @@ export default function CreateOrderPage() {
             </h2>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Address *</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
-                  placeholder="Enter full address"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={handleSearchAddress}
-                  className="bg-gray-100 hover:bg-gray-200 px-4 rounded-md border text-sm font-medium transition-colors"
-                >
-                  Locate
-                </button>
+              <div className="relative">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={handleAddressChange}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                    onFocus={() => location.length >= 3 && setShowSuggestions(true)}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
+                    placeholder="Enter full address"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSearchAddress}
+                    className="bg-gray-100 hover:bg-gray-200 px-4 rounded-md border text-sm font-medium transition-colors"
+                  >
+                    Locate
+                  </button>
+                </div>
+                {/* Suggestions Dropdown */}
+                {showSuggestions && locationSuggestions.length > 0 && (
+                  <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-60 overflow-y-auto">
+                    {locationSuggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        className="px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                        onClick={() => selectSuggestion(suggestion)}
+                      >
+                        <div className="flex items-start">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 mt-0.5 mr-3 flex-shrink-0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                          <span className="text-sm text-gray-700">{suggestion.display_name}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
