@@ -9,11 +9,20 @@ import Link from 'next/link';
 export default function LoginPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user, loading: authLoading, login } = useAuth();
+  const { user, loading: authLoading, login, rememberedPhone } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
+
+  // Pre-fill phone number and checkbox if remembered
+  useEffect(() => {
+    if (rememberedPhone) {
+      setPhone(rememberedPhone);
+      setRememberMe(true);
+    }
+  }, [rememberedPhone]);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -43,7 +52,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    const result = await login(phone, password);
+    const result = await login(phone, password, rememberMe);
     setLoading(false);
 
     if (result.success) {
@@ -99,6 +108,19 @@ export default function LoginPage() {
               className="w-full h-10 rounded-md border border-gray-300 bg-background px-3 py-2 text-sm focus:border-[#10B981] focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:ring-offset-2"
               placeholder="Enter your password"
             />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-[#10B981] focus:ring-[#10B981]"
+            />
+            <label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer">
+              Remember me
+            </label>
           </div>
 
           <button

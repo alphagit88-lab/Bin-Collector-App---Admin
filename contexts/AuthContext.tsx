@@ -20,7 +20,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (phone: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  login: (phone: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; message?: string }>;
   signup: (
     name: string,
     phone: string,
@@ -31,6 +31,7 @@ interface AuthContextType {
   ) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  rememberedPhone: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,10 +40,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rememberedPhone, setRememberedPhone] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
+    const storedPhone = localStorage.getItem('rememberedPhone');
+    
+    if (storedPhone) {
+      setRememberedPhone(storedPhone);
+    }
+    
     if (storedToken) {
       setToken(storedToken);
       fetchUser(storedToken);
@@ -71,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (phone: string, password: string) => {
+  const login = async (phone: string, password: string, rememberMe: boolean = false) => {
     try {
       const response = await api.post<{ user: User; token: string }>('/auth/login', {
         phone,
@@ -82,6 +90,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(response.data.user);
         setToken(response.data.token);
         localStorage.setItem('token', response.data.token);
+        
+        if (rememberMe) {
+          localStorage.setItem('rememberedPhone', phone);
+          setRememberedPhone(phone);
+        } else {
+          localStorage.removeItem('rememberedPhone');
+          setRememberedPhone(null);
+        }
         
         // Refresh user to get latest profile photo
         try {
@@ -166,7 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, refreshUser, rememberedPhone }}>
       {children}
     </AuthContext.Provider>
   );
