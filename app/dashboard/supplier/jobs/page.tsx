@@ -35,11 +35,15 @@ function SupplierJobsContent() {
   const { showToast } = useToast();
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get('status') || 'all';
-  
+
   const [bookings, setBookings] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>(initialStatus);
+  const [filterCustomer, setFilterCustomer] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedAttachments, setSelectedAttachments] = useState<string[] | null>(null);
+  const [filterStartDate, setFilterStartDate] = useState<string>('');
+  const [filterEndDate, setFilterEndDate] = useState<string>('');
 
   useEffect(() => {
     fetchBookings();
@@ -96,11 +100,45 @@ function SupplierJobsContent() {
     });
   };
 
-  const filteredBookings = filterStatus === 'all' 
-    ? bookings 
-    : filterStatus === 'inProgress' 
-      ? bookings.filter(b => ['on_delivery', 'delivered', 'pickup'].includes(b.status))
-      : bookings.filter(b => b.status === filterStatus);
+  const filteredBookings = bookings.filter((b) => {
+    // Status filter
+    const statusMatch =
+      filterStatus === 'all'
+        ? true
+        : filterStatus === 'inProgress'
+          ? ['on_delivery', 'delivered', 'pickup'].includes(b.status)
+          : b.status === filterStatus;
+
+    // Customer dropdown filter
+    const customerMatch = filterCustomer
+      ? b.customer_name === filterCustomer
+      : true;
+
+    // Search term filter (searches request ID and customer name)
+    const searchMatch = searchTerm
+      ? b.request_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      b.customer_name.toLowerCase().includes(searchTerm.toLowerCase())
+      : true;
+
+    // Date range filter
+    const dateMatch = (() => {
+      if (!filterStartDate && !filterEndDate) return true;
+      const start = filterStartDate ? new Date(filterStartDate) : null;
+      const end = filterEndDate ? new Date(filterEndDate) : null;
+      const bookingStart = new Date(b.start_date);
+      const bookingEnd = new Date(b.end_date);
+      if (start && end) {
+        return bookingStart >= start && bookingEnd <= end;
+      } else if (start) {
+        return bookingStart >= start;
+      } else if (end) {
+        return bookingEnd <= end;
+      }
+      return true;
+    })();
+
+    return statusMatch && customerMatch && searchMatch && dateMatch;
+  });
 
   if (loading) {
     return (
@@ -114,30 +152,61 @@ function SupplierJobsContent() {
   }
 
   return (
-    <div className="min-h-screen p-8" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
+    <div className="min-h-screen p-8 bg-bg-secondary">
       <div className="max-w-7xl mx-auto">
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>Active Jobs</h1>
-          <p style={{ color: 'var(--color-text-secondary)' }}>Manage your accepted bookings and update their status</p>
-        </div>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-primary mb-2">Active Jobs</h1>
+          <p className="text-secondary mb-4">Manage your accepted bookings and update their status</p>
+          {/* Filters and Search */}
+          <div className="flex flex-wrap gap-4 items-center bg-white/10 backdrop-blur-lg py-6">
+            {/* Search Field */}
+            <input
+              type="text"
+              placeholder="Search jobs..."
+              className="input input-sm w-auto border border-gray-300 rounded-md px-3 py-1"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {/* Status Dropdown */}
+            <select
+              className="select select-sm border border-gray-300 rounded-md px-3 py-1"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+            >
+              <option value="all">All</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="inProgress">In Progress</option>
+              <option value="ready_to_pickup">Ready to Pickup</option>
+              <option value="completed">Completed</option>
+            </select>
 
-        {/* Filters */}
-        <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button className={`btn btn-sm cursor-pointer ${filterStatus === 'all' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterStatus('all')}>
-            All
-          </button>
-          <button className={`btn btn-sm cursor-pointer ${filterStatus === 'confirmed' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterStatus('confirmed')}>
-            Confirmed
-          </button>
-          <button className={`btn btn-sm cursor-pointer ${filterStatus === 'inProgress' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterStatus('inProgress')}>
-            In Progress
-          </button>
-          <button className={`btn btn-sm cursor-pointer ${filterStatus === 'ready_to_pickup' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterStatus('ready_to_pickup')}>
-            Ready to Pickup
-          </button>
-          <button className={`btn btn-sm cursor-pointer ${filterStatus === 'completed' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setFilterStatus('completed')}>
-            Completed
-          </button>
+            {/* Customer Dropdown */}
+            <select
+              className="select select-sm border border-gray-300 rounded-md px-3 py-1"
+              value={filterCustomer}
+              onChange={(e) => setFilterCustomer(e.target.value)}
+            >
+              <option value="">All Customers</option>
+              {Array.from(new Set(bookings.map(b => b.customer_name))).map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+
+            {/* Date Range */}
+            <input
+              type="date"
+              className="input input-sm border border-gray-300 rounded-md px-3 py-1"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+            />
+            <span className="mx-1">to</span>
+            <input
+              type="date"
+              className="input input-sm border border-gray-300 rounded-md px-3 py-1"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+            />
+          </div>
         </div>
 
         {/* Bookings Table */}
@@ -216,12 +285,12 @@ function SupplierJobsContent() {
                           let parsed: string[] = [];
                           if (Array.isArray(booking.additional_images)) parsed = booking.additional_images;
                           else if (typeof booking.additional_images === 'string') {
-                            try { parsed = JSON.parse(booking.additional_images); } catch(e) {}
+                            try { parsed = JSON.parse(booking.additional_images); } catch (e) { }
                           }
                           images = [...images, ...parsed];
                         }
                         if (booking.delivery_photo_url) images.push(booking.delivery_photo_url);
-                        
+
                         return images.length > 0 ? (
                           <button
                             onClick={() => setSelectedAttachments(images)}
