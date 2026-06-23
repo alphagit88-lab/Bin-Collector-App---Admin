@@ -70,6 +70,21 @@ export default function SupplierRequestsPage() {
     }
   };
 
+  const handleDeclineRequest = async (id: number) => {
+    if (!confirm('Are you sure you want to decline this request?')) return;
+    try {
+      const response = await api.delete(`/bookings/${id}`);
+      if (response.success) {
+        showToast('Request declined successfully', 'success');
+        fetchRequests(); // Refresh list
+      } else {
+        showToast(response.error || 'Failed to decline request', 'error');
+      }
+    } catch (error) {
+      showToast('Failed to decline request', 'error');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -190,12 +205,20 @@ export default function SupplierRequestsPage() {
                       })()}
                     </td>
                     <td>
-                      <button 
-                        onClick={() => handleAcceptRequest(req.id)}
-                        className="btn btn-primary btn-sm"
-                      >
-                        Accept
-                      </button>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => handleAcceptRequest(req.id)}
+                          className="btn btn-primary btn-sm"
+                        >
+                          Accept
+                        </button>
+                        <button 
+                          onClick={() => handleDeclineRequest(req.id)}
+                          className="px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 text-sm font-medium"
+                        >
+                          Decline
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

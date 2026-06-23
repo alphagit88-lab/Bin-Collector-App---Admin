@@ -40,6 +40,8 @@ interface ServiceCategory {
   name: string;
 }
 
+const GOOGLE_LIBRARIES: any[] = ["places"];
+
 export default function CreateOrderPage() {
   const { showToast } = useToast();
   const router = useRouter();
@@ -59,7 +61,31 @@ export default function CreateOrderPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [poNumber, setPoNumber] = useState('');
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentPreviews, setAttachmentPreviews] = useState<string[]>([]);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const fileList = Array.from(files);
+      setAttachments(prev => [...prev, ...fileList]);
+      
+      fileList.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAttachmentPreviews(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+    setAttachmentPreviews(prev => prev.filter((_, i) => i !== index));
+  };
 
   // Bin Selection State
   const [binTypes, setBinTypes] = useState<BinType[]>([]);
@@ -73,6 +99,7 @@ export default function CreateOrderPage() {
   const [selectedServices, setSelectedServices] = useState<number[]>([]);
   const [totalPrice, setTotalPrice] = useState('');
   const [binPrices, setBinPrices] = useState<any[]>([]);
+  const [supplierServiceAreas, setSupplierServiceAreas] = useState<any[]>([]);
   const [systemSettings, setSystemSettings] = useState<Record<string, string>>({});
   const [fetchingSettings, setFetchingSettings] = useState(true);
   const [calculatedPrice, setCalculatedPrice] = useState<any>(null);
@@ -80,7 +107,8 @@ export default function CreateOrderPage() {
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY || ''
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY || '',
+    libraries: GOOGLE_LIBRARIES
   });
 
   useEffect(() => {
@@ -89,19 +117,12 @@ export default function CreateOrderPage() {
 
   const fetchInitialData = async () => {
     try {
-      const [typesRes, sizesRes, categoriesRes, settingsRes] = await Promise.all([
-        api.get<{ binTypes: BinType[] }>('/bins/supplier/types'),
-        api.get<{ binSizes: BinSize[] }>('/bins/supplier/sizes'),
+      const [categoriesRes, settingsRes, serviceAreasRes] = await Promise.all([
         api.get<{ categories: ServiceCategory[] }>('/service-categories'),
-        api.get<{ settings: any[] }>('/settings')
+        api.get<{ settings: any[] }>('/settings'),
+        api.get<{ serviceAreas: any[] }>('/supplier/service-areas')
       ]);
 
-      if (typesRes.success && typesRes.data) {
-        setBinTypes(typesRes.data.binTypes);
-      }
-      if (sizesRes.success && sizesRes.data) {
-        setBinSizes(sizesRes.data.binSizes);
-      }
       if (categoriesRes.success && categoriesRes.data) {
         setServiceCategories(categoriesRes.data.categories);
       }
@@ -112,6 +133,9 @@ export default function CreateOrderPage() {
         });
         setSystemSettings(settingsMap);
       }
+      if (serviceAreasRes.success && serviceAreasRes.data) {
+        setSupplierServiceAreas(serviceAreasRes.data.serviceAreas);
+      }
     } catch (error) {
       showToast('Failed to load initial data', 'error');
     } finally {
@@ -120,20 +144,59 @@ export default function CreateOrderPage() {
     }
   };
 
+  const fetchLocationBins = async (lat: number, lon: number) => {
+    try {
+      const [typesRes, sizesRes] = await Promise.all([
+        api.get<{ binTypes: BinType[] }>(`/bins/supplier/types?lat=${lat}&lon=${lon}`),
+        api.get<{ binSizes: BinSize[] }>(`/bins/supplier/sizes?lat=${lat}&lon=${lon}`)
+      ]);
+      if (typesRes.success && typesRes.data) {
+        setBinTypes(typesRes.data.binTypes);
+      }
+      if (sizesRes.success && sizesRes.data) {
+        setBinSizes(sizesRes.data.binSizes);
+      }
+    } catch (error) {
+      console.error('Error fetching location bins:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (latitude && longitude) {
+      fetchBinPrices(latitude, longitude);
+      fetchLocationBins(latitude, longitude);
+    } else {
+      setBinTypes([]);
+      setBinSizes([]);
+      setBinPrices([]);
+      setSelectedBins([{ bin_type_id: 0, bin_size_id: null, quantity: 1, price: '' }]);
+    }
+  }, [latitude, longitude]);
+
   const fetchLocationSuggestions = async (query: string) => {
     if (!query || query.length < 3) {
       setLocationSuggestions([]);
       setShowSuggestions(false);
       return;
     }
+    if (typeof window === 'undefined' || !(window as any).google || !(window as any).google.maps || !(window as any).google.maps.places) {
+      return;
+    }
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=ca`,
-        { headers: { 'User-Agent': 'BinDropAppWeb/1.0' } }
-      );
-      const data = await response.json();
-      setLocationSuggestions(data);
-      setShowSuggestions(true);
+      const service = new (window as any).google.maps.places.AutocompleteService();
+      service.getPlacePredictions({ input: query, componentRestrictions: { country: 'CA' } }, (predictions: any, status: any) => {
+        if (status === 'OK' && predictions) {
+          const formatted = predictions.map((p: any) => ({
+            display_name: p.description,
+            place_id: p.place_id
+          }));
+          setLocationSuggestions(formatted);
+          setShowSuggestions(true);
+        } else {
+          setLocationSuggestions([]);
+          setShowSuggestions(false);
+        }
+      });
     } catch (error) {
       console.error('Suggestions error:', error);
       setLocationSuggestions([]);
@@ -158,12 +221,22 @@ export default function CreateOrderPage() {
   const selectSuggestion = async (suggestion: any) => {
     setLocation(suggestion.display_name);
     setShowSuggestions(false);
-    const newLat = parseFloat(suggestion.lat);
-    const newLon = parseFloat(suggestion.lon);
-    setLatitude(newLat);
-    setLongitude(newLon);
-    setMapCenter({ lat: newLat, lng: newLon });
-    fetchBinPrices(newLat, newLon);
+    
+    if (typeof window !== 'undefined' && (window as any).google) {
+      const geocoder = new (window as any).google.maps.Geocoder();
+      geocoder.geocode({ placeId: suggestion.place_id }, (results: any, status: any) => {
+        if (status === 'OK' && results && results[0]) {
+          const loc = results[0].geometry.location;
+          const newLat = loc.lat();
+          const newLon = loc.lng();
+          setLatitude(newLat);
+          setLongitude(newLon);
+          setMapCenter({ lat: newLat, lng: newLon });
+        } else {
+          console.error('Place geocoding failed with status:', status);
+        }
+      });
+    }
   };
 
   const handleMapClick = async (e: google.maps.MapMouseEvent) => {
@@ -173,18 +246,16 @@ export default function CreateOrderPage() {
     setLatitude(lat);
     setLongitude(lng);
 
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
-        { headers: { 'User-Agent': 'BinDropAppWeb/1.0' } }
-      );
-      const data = await response.json();
-      if (data && data.display_name) {
-        setLocation(data.display_name);
-        fetchBinPrices(lat, lng);
-      }
-    } catch (error) {
-      console.error('Reverse geocode error:', error);
+    if (typeof window !== 'undefined' && (window as any).google) {
+      const geocoder = new (window as any).google.maps.Geocoder();
+      geocoder.geocode({ location: { lat, lng } }, (results: any, status: any) => {
+        if (status === 'OK' && results && results[0]) {
+          const address = results[0].formatted_address;
+          setLocation(address);
+        } else {
+          console.error('Reverse geocode failed with status:', status);
+        }
+      });
     }
   };
 
@@ -192,7 +263,9 @@ export default function CreateOrderPage() {
     try {
       const response = await api.get<{ prices: any[] }>(`/bins/prices?lat=${lat}&lon=${lon}`);
       if (response.success && response.data) {
-        setBinPrices(response.data.prices);
+        const supplierAreaIds = supplierServiceAreas.map(sa => sa.id);
+        const supplierPrices = response.data.prices.filter(p => supplierAreaIds.includes(p.service_area_id));
+        setBinPrices(supplierPrices);
       }
     } catch (error) {
       console.error('Error fetching prices:', error);
@@ -265,26 +338,21 @@ export default function CreateOrderPage() {
 
   const handleSearchAddress = async () => {
     if (!location) return;
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&countrycodes=ca`,
-        { headers: { 'User-Agent': 'BinDropAppWeb/1.0' } }
-      );
-      const data = await response.json();
-      if (data && data.length > 0) {
-        const newLat = parseFloat(data[0].lat);
-        const newLon = parseFloat(data[0].lon);
-        setLatitude(newLat);
-        setLongitude(newLon);
-        setMapCenter({ lat: newLat, lng: newLon });
-        setLocation(data[0].display_name);
-        fetchBinPrices(newLat, newLon);
-      } else {
-        // Fallback for when location is entered but not specifically searched on map
-        // Supplier can still create the order with just the location string
-      }
-    } catch (error) {
-      console.error('Failed to search location:', error);
+    if (typeof window !== 'undefined' && (window as any).google) {
+      const geocoder = new (window as any).google.maps.Geocoder();
+      geocoder.geocode({ address: location, componentRestrictions: { country: 'CA' } }, (results: any, status: any) => {
+        if (status === 'OK' && results && results[0]) {
+          const loc = results[0].geometry.location;
+          const newLat = loc.lat();
+          const newLon = loc.lng();
+          setLatitude(newLat);
+          setLongitude(newLon);
+          setMapCenter({ lat: newLat, lng: newLon });
+          setLocation(results[0].formatted_address);
+        } else {
+          console.error('Search address failed with status:', status);
+        }
+      });
     }
   };
 
@@ -340,26 +408,56 @@ export default function CreateOrderPage() {
 
     setLoading(true);
     try {
-      const body = {
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        service_category: serviceCategory,
-        bins: selectedBins.map(b => ({
+      const formData = new FormData();
+      formData.append('customer_name', customerName);
+      formData.append('customer_phone', customerPhone);
+      formData.append('service_category', serviceCategory);
+      formData.append('location', location);
+      formData.append('start_date', startDate);
+      formData.append('end_date', endDate);
+      formData.append('instructions', instructions);
+      formData.append('payment_method', 'cash');
+      
+      if (poNumber) {
+        formData.append('po_number', poNumber);
+      }
+      if (latitude !== null) {
+        formData.append('latitude', latitude.toString());
+      }
+      if (longitude !== null) {
+        formData.append('longitude', longitude.toString());
+      }
+
+      if (serviceCategory === 'service') {
+        if (selectedServices.length === 0) {
+          showToast('Please select at least one service', 'error');
+          setLoading(false);
+          return;
+        }
+        formData.append('selected_services', JSON.stringify(selectedServices));
+        formData.append('total_price', totalPrice || '0');
+      } else {
+        const validBins = selectedBins.filter(b => b.bin_type_id > 0);
+        if (validBins.length === 0) {
+          showToast('Please select at least one bin type', 'error');
+          setLoading(false);
+          return;
+        }
+        formData.append('bins', JSON.stringify(validBins.map(b => ({
           bin_type_id: b.bin_type_id,
           bin_size_id: b.bin_size_id,
           quantity: b.quantity,
           price: b.price || '0',
-        })),
-        location,
-        latitude,
-        longitude,
-        start_date: startDate,
-        end_date: endDate,
-        instructions,
-        payment_method: 'cash'
-      };
+        }))));
+      }
 
-      const response = await api.post('/bookings/supplier/create', body);
+      if (attachments.length > 0) {
+        attachments.forEach((file) => {
+          formData.append('attachments', file);
+        });
+      }
+
+      const response = await api.post('/bookings/supplier/create', formData);
 
       if (response.success) {
         showToast(response.message || 'Order created successfully', 'success');
@@ -436,7 +534,7 @@ export default function CreateOrderPage() {
               Order Details
             </h2>
             
-            <div className="mb-6">
+            <div className="mb-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Service Category*</label>
               <div className="flex gap-2">
                 {['residential', 'commercial', 'service'].map((cat) => (
@@ -455,120 +553,6 @@ export default function CreateOrderPage() {
                 ))}
               </div>
             </div>
-
-            {serviceCategory !== 'service' ? (
-              <div className="space-y-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bins & Pricing*</label>
-                {selectedBins.map((bin, index) => (
-                  <div key={index} className="flex flex-wrap items-end gap-3 p-4 bg-gray-50 rounded-lg border border-gray-100 relative">
-                    <div className="flex-1 min-w-[150px]">
-                      <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Type</label>
-                      <select
-                        value={bin.bin_type_id}
-                        onChange={(e) => updateBinRow(index, 'bin_type_id', parseInt(e.target.value))}
-                        className="w-full px-3 py-2 border rounded-md text-sm outline-none"
-                      >
-                        <option value={0}>Select Type</option>
-                        {binTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                      </select>
-                    </div>
-                    {(!bin.bin_type_id || binSizes.some(s => s.bin_type_id === bin.bin_type_id)) && (
-                      <div className="flex-1 min-w-[150px]">
-                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Size</label>
-                        <select
-                          value={bin.bin_size_id || ''}
-                          onChange={(e) => updateBinRow(index, 'bin_size_id', e.target.value ? parseInt(e.target.value) : null)}
-                          className="w-full px-3 py-2 border rounded-md text-sm outline-none"
-                          disabled={!bin.bin_type_id}
-                        >
-                          <option value="">Select Size</option>
-                          {binSizes.filter(s => s.bin_type_id === bin.bin_type_id).map(s => (
-                            <option key={s.id} value={s.id}>{s.size}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    <div className="w-20">
-                      <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Qty</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={bin.quantity}
-                        onChange={(e) => updateBinRow(index, 'quantity', parseInt(e.target.value))}
-                        className="w-full px-3 py-2 border rounded-md text-sm outline-none"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeBinRow(index)}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-full"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addBinRow}
-                  className="text-green-600 font-semibold text-sm flex items-center hover:text-green-700"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                  Add Another Bin
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Select Services*</label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {serviceCategories.map((category) => (
-                      <button
-                        key={category.id}
-                        type="button"
-                        onClick={() => toggleService(category.id)}
-                        className={`flex items-center p-3 rounded-lg border transition-all ${
-                          selectedServices.includes(category.id)
-                            ? 'border-green-500 bg-green-50 text-green-700'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className={`w-5 h-5 rounded border mr-2 flex items-center justify-center ${
-                          selectedServices.includes(category.id) ? 'bg-green-500 border-green-500' : 'bg-white'
-                        }`}>
-                          {selectedServices.includes(category.id) && (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          )}
-                        </div>
-                        <span className="text-sm font-medium">{category.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Service Description*</label>
-                  <textarea
-                    value={instructions}
-                    onChange={(e) => setInstructions(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
-                    placeholder="Enter additional service details..."
-                    rows={3}
-                    required
-                  />
-                </div>
-                <div className="w-full md:w-1/3">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Total Price ($)*</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={totalPrice}
-                    onChange={(e) => setTotalPrice(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none font-bold text-lg"
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Location & Map */}
@@ -647,6 +631,174 @@ export default function CreateOrderPage() {
             </div>
           </div>
 
+          {/* Bins & Pricing / Service Details */}
+          <div className="dashboard-card rounded-lg p-6 bg-white shadow-sm border border-gray-100">
+            {serviceCategory !== 'service' ? (
+              (!latitude || !longitude) ? (
+                <div className="p-8 text-center bg-gray-50 rounded-lg border border-gray-100 flex flex-col items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 mb-3"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                  <p className="text-sm font-semibold text-gray-500">
+                    Please select or search a location first before choosing bins
+                  </p>
+                </div>
+              ) : binTypes.filter(t => binPrices.some(p => p.bin_type_id === t.id)).length === 0 ? (
+                <div className="p-8 text-center bg-gray-50 rounded-lg border border-gray-100 flex flex-col items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500 mb-3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                  <p className="text-sm font-semibold text-gray-500">
+                    No bins configured or priced in your service area for this location.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bins & Pricing*</label>
+                  {selectedBins.map((bin, index) => (
+                    <div key={index} className="flex flex-wrap items-end gap-3 p-4 bg-gray-50 rounded-lg border border-gray-100 relative">
+                      <div className="flex-1 min-w-[150px]">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Type</label>
+                        <select
+                          value={bin.bin_type_id}
+                          onChange={(e) => updateBinRow(index, 'bin_type_id', parseInt(e.target.value))}
+                          className="w-full px-3 py-2 border rounded-md text-sm outline-none"
+                        >
+                          <option value={0}>Select Type</option>
+                          {binTypes
+                            .filter(t => binPrices.some(p => p.bin_type_id === t.id))
+                            .map(t => {
+                              const availableSizes = binSizes.filter(s => s.bin_type_id === t.id && binPrices.some(p => p.bin_size_id === s.id));
+                              let isTypeDisabled = false;
+                              if (availableSizes.length > 0) {
+                                isTypeDisabled = availableSizes.every(size =>
+                                  selectedBins.some((b, idx) =>
+                                    idx !== index &&
+                                    b.bin_type_id === t.id &&
+                                    b.bin_size_id === size.id
+                                  )
+                                );
+                              } else {
+                                isTypeDisabled = selectedBins.some((b, idx) =>
+                                  idx !== index &&
+                                  b.bin_type_id === t.id
+                                );
+                              }
+                              return (
+                                <option key={t.id} value={t.id} disabled={isTypeDisabled}>
+                                  {t.name} {isTypeDisabled ? '(All Sizes Selected)' : ''}
+                                </option>
+                              );
+                            })}
+                        </select>
+                      </div>
+                      {(!bin.bin_type_id || binSizes.some(s => s.bin_type_id === bin.bin_type_id)) && (
+                        <div className="flex-1 min-w-[150px]">
+                          <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Size</label>
+                          <select
+                            value={bin.bin_size_id || ''}
+                            onChange={(e) => updateBinRow(index, 'bin_size_id', e.target.value ? parseInt(e.target.value) : null)}
+                            className="w-full px-3 py-2 border rounded-md text-sm outline-none"
+                            disabled={!bin.bin_type_id}
+                          >
+                            <option value="">Select Size</option>
+                            {binSizes
+                              .filter(s => s.bin_type_id === bin.bin_type_id && binPrices.some(p => p.bin_size_id === s.id))
+                              .map(s => {
+                                const isSizeAlreadySelected = selectedBins.some((b, idx) =>
+                                  idx !== index &&
+                                  b.bin_type_id === bin.bin_type_id &&
+                                  b.bin_size_id === s.id
+                                );
+                                return (
+                                  <option key={s.id} value={s.id} disabled={isSizeAlreadySelected}>
+                                    {s.size} {isSizeAlreadySelected ? '(Already Selected)' : ''}
+                                  </option>
+                                );
+                              })}
+                          </select>
+                        </div>
+                      )}
+                      <div className="w-20">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase">Qty</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={bin.quantity}
+                          onChange={(e) => updateBinRow(index, 'quantity', parseInt(e.target.value))}
+                          className="w-full px-3 py-2 border rounded-md text-sm outline-none"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeBinRow(index)}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-full"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addBinRow}
+                    className="text-green-600 font-semibold text-sm flex items-center hover:text-green-700"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Add Another Bin
+                  </button>
+                </div>
+              )
+            ) : (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Select Services*</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {serviceCategories.map((category) => (
+                      <button
+                        key={category.id}
+                        type="button"
+                        onClick={() => toggleService(category.id)}
+                        className={`flex items-center p-3 rounded-lg border transition-all ${
+                          selectedServices.includes(category.id)
+                            ? 'border-green-500 bg-green-50 text-green-700'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded border mr-2 flex items-center justify-center ${
+                          selectedServices.includes(category.id) ? 'bg-green-500 border-green-500' : 'bg-white'
+                        }`}>
+                          {selectedServices.includes(category.id) && (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          )}
+                        </div>
+                        <span className="text-sm font-medium">{category.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Service Description*</label>
+                  <textarea
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
+                    placeholder="Enter additional service details..."
+                    rows={3}
+                    required
+                  />
+                </div>
+                <div className="w-full md:w-1/3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Total Price ($)*</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={totalPrice}
+                    onChange={(e) => setTotalPrice(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none font-bold text-lg"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Schedule */}
           <div className="dashboard-card rounded-lg p-6 bg-white shadow-sm border border-gray-100">
             <h2 className="text-lg font-semibold mb-4 text-gray-800 flex items-center border-b pb-2">
@@ -690,6 +842,74 @@ export default function CreateOrderPage() {
                   Cash on Delivery
                 </div>
                 <p className="text-xs text-gray-500 mt-1 italic">Supplier-created orders are cash only.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Details */}
+          <div className="dashboard-card rounded-lg p-6 bg-white shadow-sm border border-gray-100">
+            <h2 className="text-lg font-semibold mb-4 text-gray-800 flex items-center border-b pb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-green-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              Additional Information (Optional)
+            </h2>
+            <div className="space-y-4">
+              {serviceCategory !== 'service' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">PO Number</label>
+                  <input
+                    type="text"
+                    value={poNumber}
+                    onChange={(e) => setPoNumber(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
+                    placeholder="Enter PO Number"
+                  />
+                </div>
+              )}
+              
+              {serviceCategory !== 'service' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Instructions / Notes</label>
+                  <textarea
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
+                    placeholder="Add special delivery/pickup instructions..."
+                    rows={3}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Upload Attachments</label>
+                <div className="mt-2 flex flex-wrap gap-3 items-center">
+                  {attachmentPreviews.map((preview, index) => (
+                    <div key={index} className="relative w-20 h-20 border rounded-lg overflow-hidden group">
+                      <img src={preview} alt="preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(index)}
+                        className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold text-xs"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {attachments.length < 10 && (
+                    <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-green-500 transition-colors">
+                      <span className="text-xl text-gray-400 font-bold">+</span>
+                      <span className="text-[10px] text-gray-400 font-semibold">Upload</span>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Upload up to 10 photos of the site/setup.</p>
               </div>
             </div>
           </div>

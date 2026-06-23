@@ -113,6 +113,31 @@ export default function DashboardPage() {
               </Link>
             </>
           )}
+          {user?.role === 'supplier' && (
+            <>
+              <Link href="/dashboard/supplier/earnings" className="dashboard-card rounded-lg p-6 cursor-pointer">
+                <p className="text-sm mb-3 font-light" style={{ color: 'var(--color-text-secondary)' }}>Wallet Balance</p>
+                <p className="text-4xl font-bold" style={{ color: '#10B981' }}>
+                  ${stats.wallet ? parseFloat(stats.wallet.balance).toFixed(2) : '0.00'}
+                </p>
+                {stats.wallet?.pending_balance && parseFloat(stats.wallet.pending_balance) > 0 && (
+                   <p className="text-sm mt-2 text-amber-500 font-medium">Pending: ${parseFloat(stats.wallet.pending_balance).toFixed(2)}</p>
+                )}
+              </Link>
+              <Link href="/dashboard/supplier/requests" className="dashboard-card rounded-lg p-6 cursor-pointer">
+                <p className="text-sm mb-3 font-light" style={{ color: 'var(--color-text-secondary)' }}>Pending Requests</p>
+                <p className="text-4xl font-bold" style={{ color: '#10B981' }}>{stats.supplierCounts?.pending || 0}</p>
+              </Link>
+              <Link href="/dashboard/supplier/jobs?status=confirmed" className="dashboard-card rounded-lg p-6 cursor-pointer">
+                <p className="text-sm mb-3 font-light" style={{ color: 'var(--color-text-secondary)' }}>Confirmed Jobs</p>
+                <p className="text-4xl font-bold" style={{ color: '#10B981' }}>{stats.supplierCounts?.confirmed || 0}</p>
+              </Link>
+              <Link href="/dashboard/supplier/jobs?status=inProgress" className="dashboard-card rounded-lg p-6 cursor-pointer">
+                <p className="text-sm mb-3 font-light" style={{ color: 'var(--color-text-secondary)' }}>In Progress</p>
+                <p className="text-4xl font-bold" style={{ color: '#10B981' }}>{stats.supplierCounts?.inProgress || 0}</p>
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Quick Actions */}

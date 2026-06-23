@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
+import JobDetailModal from '@/components/dashboard/JobDetailModal';
 import { useSearchParams } from 'next/navigation';
 
 interface ServiceRequest {
@@ -42,6 +43,7 @@ function SupplierJobsContent() {
   const [filterCustomer, setFilterCustomer] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedAttachments, setSelectedAttachments] = useState<string[] | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [filterStartDate, setFilterStartDate] = useState<string>('');
   const [filterEndDate, setFilterEndDate] = useState<string>('');
 
@@ -305,7 +307,12 @@ function SupplierJobsContent() {
                       })()}
                     </td>
                     <td>
-                      <button className="btn btn-outline btn-sm">Update</button>
+                      <button 
+                        onClick={() => setSelectedJobId(booking.id)}
+                        className="btn btn-outline btn-sm"
+                      >
+                        Update
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -362,6 +369,14 @@ function SupplierJobsContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {selectedJobId !== null && (
+        <JobDetailModal
+          jobId={selectedJobId}
+          onClose={() => setSelectedJobId(null)}
+          onJobUpdated={fetchBookings}
+        />
       )}
     </div >
   );

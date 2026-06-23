@@ -73,31 +73,31 @@ export default function ServiceAreaPage() {
 
   const handleSearchAddress = async () => {
     if (!newCity) return;
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(newCity)}&format=json&limit=1&addressdetails=1&countrycodes=ca`,
-        { headers: { 'User-Agent': 'BinDropAppWeb/1.0' } }
-      );
-      const data = await response.json();
-      if (data && data.length > 0) {
-        const { lat, lon, display_name, address = {} } = data[0];
-        const newLat = parseFloat(lat);
-        const newLon = parseFloat(lon);
-        setNewLatitude(newLat);
-        setNewLongitude(newLon);
-        setMapCenter({ lat: newLat, lng: newLon });
+    if (typeof window !== 'undefined' && window.google) {
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode({ address: newCity, componentRestrictions: { country: 'CA' } }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const loc = results[0].geometry.location;
+          const lat = loc.lat();
+          const lng = loc.lng();
+          setNewLatitude(lat);
+          setNewLongitude(lng);
+          setMapCenter({ lat, lng });
 
-        const detectedCountry = address.country || '';
-        const detectedCity = address.city || address.town || address.village || address.suburb || address.state || display_name;
+          const components = results[0].address_components;
+          const countryComp = components.find((c: any) => c.types.includes('country'));
+          const cityComp = components.find((c: any) => 
+            c.types.includes('locality') || 
+            c.types.includes('administrative_area_level_3') || 
+            c.types.includes('sublocality')
+          );
 
-        if (detectedCountry) setNewCountry(detectedCountry);
-        setNewCity(detectedCity);
-      } else {
-        showToast('Location not found. Please try another search.', 'error');
-      }
-    } catch (error) {
-      console.error('Search error:', error);
-      showToast('Failed to search location.', 'error');
+          if (countryComp) setNewCountry(countryComp.long_name);
+          setNewCity(cityComp ? cityComp.long_name : results[0].formatted_address);
+        } else {
+          showToast('Location not found. Please try another search.', 'error');
+        }
+      });
     }
   };
 
@@ -108,22 +108,24 @@ export default function ServiceAreaPage() {
     setNewLatitude(lat);
     setNewLongitude(lng);
 
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`,
-        { headers: { 'User-Agent': 'BinDropAppWeb/1.0' } }
-      );
-      const data = await response.json();
-      if (data && data.display_name) {
-        const { address = {}, display_name } = data;
-        const detectedCountry = address.country || '';
-        const detectedCity = address.city || address.town || address.village || address.suburb || address.state || display_name;
+    if (typeof window !== 'undefined' && window.google) {
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const components = results[0].address_components;
+          const countryComp = components.find((c: any) => c.types.includes('country'));
+          const cityComp = components.find((c: any) => 
+            c.types.includes('locality') || 
+            c.types.includes('administrative_area_level_3') || 
+            c.types.includes('sublocality')
+          );
 
-        if (detectedCountry) setNewCountry(detectedCountry);
-        setNewCity(detectedCity);
-      }
-    } catch (error) {
-      console.error('Reverse geocode error:', error);
+          if (countryComp) setNewCountry(countryComp.long_name);
+          setNewCity(cityComp ? cityComp.long_name : results[0].formatted_address);
+        } else {
+          console.error('Reverse geocode failed with status:', status);
+        }
+      });
     }
   };
 
