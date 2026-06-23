@@ -19,6 +19,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (token && user) {
       const socketUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+      let active = true;
 
       const newSocket = io(socketUrl, {
         auth: { token },
@@ -28,6 +29,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       newSocket.on('connect', () => {
         console.log('Socket connected');
         setConnected(true);
+        if (!active) {
+          newSocket.close();
+        }
       });
 
       newSocket.on('disconnect', () => {
@@ -43,7 +47,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       setSocket(newSocket);
 
       return () => {
-        newSocket.close();
+        active = false;
+        if (newSocket.connected) {
+          newSocket.close();
+        }
       };
     } else {
       if (socket) {
