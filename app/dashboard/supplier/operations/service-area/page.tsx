@@ -26,6 +26,8 @@ const defaultCenter = {
   lng: -79.3832
 };
 
+const GOOGLE_LIBRARIES: any[] = ["places"];
+
 export default function ServiceAreaPage() {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,8 @@ export default function ServiceAreaPage() {
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY || ''
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY || '',
+    libraries: GOOGLE_LIBRARIES
   });
 
   useEffect(() => {

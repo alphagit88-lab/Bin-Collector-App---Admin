@@ -17,6 +17,8 @@ const defaultCenter = {
   lng: -75.6972
 };
 
+const GOOGLE_LIBRARIES: any[] = ["places"];
+
 export default function AccountSettingsPage() {
   const { user, refreshUser, logout } = useAuth();
   const { showToast } = useToast();
@@ -46,7 +48,8 @@ export default function AccountSettingsPage() {
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY || ''
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY || '',
+    libraries: GOOGLE_LIBRARIES
   });
 
   useEffect(() => {
