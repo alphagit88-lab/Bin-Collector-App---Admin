@@ -3,6 +3,20 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
+import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
+
+const mapContainerStyle = {
+  width: '100%',
+  height: '100%',
+  borderRadius: '0.75rem'
+};
+
+const defaultCenter = {
+  lat: 43.6532,
+  lng: -79.3832
+};
+
+const GOOGLE_LIBRARIES: any[] = ["places"];
 
 interface ServiceRequest {
   id: number;
@@ -27,6 +41,8 @@ interface ServiceRequest {
   attachment_url?: string;
   additional_images?: string[] | string;
   delivery_photo_url?: string;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export default function SupplierRequestsPage() {
@@ -34,6 +50,14 @@ export default function SupplierRequestsPage() {
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAttachments, setSelectedAttachments] = useState<string[] | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY || '',
+    libraries: GOOGLE_LIBRARIES
+  });
 
   useEffect(() => {
     fetchRequests();
@@ -107,12 +131,39 @@ export default function SupplierRequestsPage() {
   return (
     <div className="min-h-screen p-8" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
       <div className="max-w-7xl mx-auto">
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>Pending Requests</h1>
-          <p style={{ color: 'var(--color-text-secondary)' }}>View and accept pending service requests</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center" style={{ marginBottom: '2rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>Pending Requests</h1>
+            <p style={{ color: 'var(--color-text-secondary)' }}>View and accept pending service requests</p>
+          </div>
+          <div className="flex bg-white rounded-lg shadow-sm border p-1 mt-4 sm:mt-0">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'list' ? 'bg-[#10B981] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                List View
+              </div>
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'map' ? 'bg-[#10B981] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                Map View
+              </div>
+            </button>
+          </div>
         </div>
 
-        {/* Requests Table */}
+        {/* Requests Content */}
+        {viewMode === 'list' ? (
         <div className="table-container">
           <table className="table">
             <thead>
@@ -226,6 +277,85 @@ export default function SupplierRequestsPage() {
             </tbody>
           </table>
         </div>
+        ) : (
+          <div className="h-[600px] w-full rounded-xl overflow-hidden shadow-md border relative bg-white">
+            {!isLoaded ? (
+              <div className="w-full h-full flex items-center justify-center text-gray-500">
+                Loading Map...
+              </div>
+            ) : (
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={requests.find(r => r.latitude && r.longitude) ? { lat: Number(requests.find(r => r.latitude && r.longitude)?.latitude), lng: Number(requests.find(r => r.latitude && r.longitude)?.longitude) } : defaultCenter}
+                zoom={requests.some(r => r.latitude && r.longitude) ? 10 : 4}
+                options={{
+                  streetViewControl: false,
+                  mapTypeControl: false,
+                  fullscreenControl: false
+                }}
+              >
+                {requests.filter(r => r.latitude && r.longitude).map(req => (
+                  <Marker
+                    key={req.id}
+                    position={{ lat: Number(req.latitude), lng: Number(req.longitude) }}
+                    onClick={() => setSelectedRequest(req)}
+                    icon={{
+                      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#10B981" width="36px" height="36px"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>'),
+                      scaledSize: new window.google.maps.Size(36, 36),
+                    }}
+                  />
+                ))}
+
+                {selectedRequest && selectedRequest.latitude && selectedRequest.longitude && (
+                  <InfoWindow
+                    position={{ lat: Number(selectedRequest.latitude), lng: Number(selectedRequest.longitude) }}
+                    onCloseClick={() => setSelectedRequest(null)}
+                  >
+                    <div className="p-3 max-w-[250px]">
+                      <div className="font-bold text-gray-900 border-b pb-2 mb-2">
+                        {selectedRequest.bin_type_name} - {selectedRequest.bin_size}
+                        {selectedRequest.order_items_count && selectedRequest.order_items_count > 1 && (
+                          <span className="text-xs text-gray-500 font-normal ml-1">
+                            (+{selectedRequest.order_items_count - 1} more)
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm mb-1">
+                        <span className="font-medium">Customer:</span> {selectedRequest.customer_name}
+                      </div>
+                      <div className="text-sm mb-1 text-gray-600">
+                        {selectedRequest.customer_phone}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2 mb-3">
+                        {selectedRequest.location}
+                      </div>
+                      <div className="flex gap-2 w-full pt-2 border-t">
+                        <button 
+                          onClick={() => {
+                            setSelectedRequest(null);
+                            handleAcceptRequest(selectedRequest.id);
+                          }}
+                          className="flex-1 py-1.5 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-medium rounded transition-colors"
+                        >
+                          Accept
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setSelectedRequest(null);
+                            handleDeclineRequest(selectedRequest.id);
+                          }}
+                          className="flex-1 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium rounded transition-colors"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  </InfoWindow>
+                )}
+              </GoogleMap>
+            )}
+          </div>
+        )}
       </div >
 
       {/* Attachments Modal */}

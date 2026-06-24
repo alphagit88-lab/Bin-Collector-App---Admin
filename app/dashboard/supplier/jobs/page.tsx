@@ -5,6 +5,20 @@ import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import JobDetailModal from '@/components/dashboard/JobDetailModal';
 import { useSearchParams } from 'next/navigation';
+import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
+
+const mapContainerStyle = {
+  width: '100%',
+  height: '100%',
+  borderRadius: '0.75rem'
+};
+
+const defaultCenter = {
+  lat: 43.6532,
+  lng: -79.3832
+};
+
+const GOOGLE_LIBRARIES: any[] = ["places"];
 
 interface ServiceRequest {
   id: number;
@@ -30,6 +44,8 @@ interface ServiceRequest {
   bill_id?: string;
   additional_images?: string[] | string;
   delivery_photo_url?: string;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 function SupplierJobsContent() {
@@ -46,6 +62,14 @@ function SupplierJobsContent() {
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [filterStartDate, setFilterStartDate] = useState<string>('');
   const [filterEndDate, setFilterEndDate] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [selectedJob, setSelectedJob] = useState<ServiceRequest | null>(null);
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY || '',
+    libraries: GOOGLE_LIBRARIES
+  });
 
   useEffect(() => {
     fetchBookings();
@@ -156,9 +180,36 @@ function SupplierJobsContent() {
   return (
     <div className="min-h-screen p-8 bg-bg-secondary">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-primary mb-2">Active Jobs</h1>
-          <p className="text-secondary mb-4">Manage your accepted bookings and update their status</p>
+        <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-primary mb-2">Active Jobs</h1>
+            <p className="text-secondary mb-4 sm:mb-0">Manage your accepted bookings and update their status</p>
+          </div>
+          <div className="flex bg-white/50 backdrop-blur-md rounded-lg shadow-sm border p-1 mt-4 sm:mt-0">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'list' ? 'bg-[#10B981] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                List View
+              </div>
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'map' ? 'bg-[#10B981] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                Map View
+              </div>
+            </button>
+          </div>
+        </div>
           {/* Filters and Search */}
           <div className="flex flex-wrap gap-4 items-center bg-white/10 backdrop-blur-lg py-6">
             {/* Search Field */}
@@ -209,9 +260,9 @@ function SupplierJobsContent() {
               onChange={(e) => setFilterEndDate(e.target.value)}
             />
           </div>
-        </div>
 
-        {/* Bookings Table */}
+        {/* Bookings Content */}
+        {viewMode === 'list' ? (
         <div className="table-container">
           <table className="table">
             <thead>
@@ -320,6 +371,76 @@ function SupplierJobsContent() {
             </tbody>
           </table>
         </div>
+        ) : (
+          <div className="h-[600px] w-full rounded-xl overflow-hidden shadow-md border relative bg-white mt-6">
+            {!isLoaded ? (
+              <div className="w-full h-full flex items-center justify-center text-gray-500">
+                Loading Map...
+              </div>
+            ) : (
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={filteredBookings.find(b => b.latitude && b.longitude) ? { lat: Number(filteredBookings.find(b => b.latitude && b.longitude)?.latitude), lng: Number(filteredBookings.find(b => b.latitude && b.longitude)?.longitude) } : defaultCenter}
+                zoom={filteredBookings.some(b => b.latitude && b.longitude) ? 10 : 4}
+                options={{
+                  streetViewControl: false,
+                  mapTypeControl: false,
+                  fullscreenControl: false
+                }}
+              >
+                {filteredBookings.filter(b => b.latitude && b.longitude).map(booking => (
+                  <Marker
+                    key={booking.id}
+                    position={{ lat: Number(booking.latitude), lng: Number(booking.longitude) }}
+                    onClick={() => setSelectedJob(booking)}
+                    icon={{
+                      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#10B981" width="36px" height="36px"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>'),
+                      scaledSize: new window.google.maps.Size(36, 36),
+                    }}
+                  />
+                ))}
+
+                {selectedJob && selectedJob.latitude && selectedJob.longitude && (
+                  <InfoWindow
+                    position={{ lat: Number(selectedJob.latitude), lng: Number(selectedJob.longitude) }}
+                    onCloseClick={() => setSelectedJob(null)}
+                  >
+                    <div className="p-3 max-w-[250px]">
+                      <div className="font-bold text-gray-900 border-b pb-2 mb-2">
+                        {selectedJob.bin_type_name} - {selectedJob.bin_size}
+                        {selectedJob.order_items_count && selectedJob.order_items_count > 1 && (
+                          <span className="text-xs text-gray-500 font-normal ml-1">
+                            (+{selectedJob.order_items_count - 1} more)
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm mb-1">
+                        <span className="font-medium">Customer:</span> {selectedJob.customer_name}
+                      </div>
+                      <div className="text-sm mb-1">
+                        <span className="font-medium">Status:</span> <span className={`capitalize ${getStatusBadgeClass(selectedJob.status)}`}>{formatStatus(selectedJob.status)}</span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2 mb-3">
+                        {selectedJob.location}
+                      </div>
+                      <div className="w-full pt-2 border-t">
+                        <button 
+                          onClick={() => {
+                            setSelectedJob(null);
+                            setSelectedJobId(selectedJob.id);
+                          }}
+                          className="w-full py-1.5 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-medium rounded transition-colors"
+                        >
+                          Update Job
+                        </button>
+                      </div>
+                    </div>
+                  </InfoWindow>
+                )}
+              </GoogleMap>
+            )}
+          </div>
+        )}
       </div >
 
       {/* Attachments Modal */}
