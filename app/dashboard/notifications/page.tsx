@@ -27,9 +27,16 @@ export default function NotificationsPage() {
 
   const fetchNotifications = async () => {
     try {
-      const response = await api.get<Notification[]>('/notifications');
-      if (response.success && response.data) {
-        setNotifications(response.data || []);
+      const response = await api.get<any>('/notifications');
+      if (response.success) {
+        const list: Notification[] = response.data || [];
+        setNotifications(list);
+        // Auto-mark all as read when the page is viewed
+        const hasUnread = list.some(n => !n.is_read);
+        if (hasUnread) {
+          await api.put('/notifications/read-all');
+          setNotifications(list.map(n => ({ ...n, is_read: true })));
+        }
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);

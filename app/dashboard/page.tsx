@@ -30,9 +30,9 @@ export default function DashboardPage() {
       return;
     }
 
-    // Redirect customers and drivers to mobile pages
+    // Redirect customers to their dashboard
     if (user?.role === 'customer') {
-      router.push('/mobile/customer/orders');
+      router.push('/dashboard/customer');
       return;
     }
     if (user?.role === 'driver') {

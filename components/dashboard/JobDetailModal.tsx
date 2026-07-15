@@ -326,6 +326,16 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
     }
   };
 
+  // Match mobile app's BinAssignmentModal: filter by status=available AND type/size compatibility
+  const getCompatibleBins = (item: OrderItem) => {
+    return availableBins.filter(
+      (bin) =>
+        bin.status === 'available' &&
+        (bin.bin_type_name === item.bin_type_name || bin.bin_type_id === (item as any).bin_type_id) &&
+        (bin.bin_size === item.bin_size || bin.bin_size_id === (item as any).bin_size_id)
+    );
+  };
+
   const handleStartDeliveryAll = () => {
     // Check if assignments are complete
     const items = job?.orderItems || [];
@@ -381,13 +391,6 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
     return [];
   };
 
-  const getCompatibleBins = (item: OrderItem) => {
-    return availableBins.filter(bin => 
-      bin.status === 'available' &&
-      bin.bin_type_name === item.bin_type_name &&
-      bin.bin_size === item.bin_size
-    );
-  };
 
   // Compile all attachments
   const attachments: string[] = [];
@@ -628,7 +631,7 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
                               recipientId: recipientId
                             });
                             if (response.success && response.data) {
-                              window.location.href = `/dashboard/notifications`; // simple redirect or chat trigger
+                              window.location.href = `/dashboard/messages/${response.data.id}`;
                             }
                           } catch (err) {
                             showToast('Failed to start chat', 'error');
@@ -903,7 +906,7 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
                     </div>
                   )}
                   <div className="flex justify-between items-center text-sm border-b pb-2 border-gray-200">
-                    <span className="text-gray-500 font-medium">Payment Mode:</span>
+                    <span className="text-gray-500 font-medium">Payment Method:</span>
                     <span className="font-bold text-gray-700 uppercase">{job.payment_method || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
