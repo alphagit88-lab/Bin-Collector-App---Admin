@@ -7,6 +7,12 @@ import { api, API_BASE_URL } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { GoogleMap, Marker, Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 
+interface ServiceCategory {
+  id: number;
+  name: string;
+  description: string;
+}
+
 const GOOGLE_LIBRARIES: any[] = ["places"];
 
 export default function CustomerOrderPage() {
@@ -27,9 +33,10 @@ export default function CustomerOrderPage() {
 
   const [availableBins, setAvailableBins] = useState<any[]>([]);
   const [binSizesMap, setBinSizesMap] = useState<Record<number, any[]>>({});
-  const [availableServices, setAvailableServices] = useState<any[]>([]);
+  const [availableServices, setAvailableServices] = useState<ServiceCategory[]>([]);
   const [selectedBins, setSelectedBins] = useState<any[]>([{ typeId: '', sizeId: '', quantity: '1' }]);
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
+  const [customerBudget, setCustomerBudget] = useState('');
 
   // Order Details
   const [startDate, setStartDate] = useState('');
@@ -117,9 +124,9 @@ export default function CustomerOrderPage() {
 
   const fetchServices = async () => {
     try {
-      const res = await api.get<{ services: any[] }>(`/services/categories?lat=${latitude}&lng=${longitude}`);
+      const res = await api.get<{ categories: ServiceCategory[] }>(`/service-categories`);
       if (res.success && res.data) {
-        setAvailableServices(res.data.services || []);
+        setAvailableServices(res.data.categories || []);
       }
     } catch {
       showToast('Failed to load services for this location', 'error');
@@ -221,6 +228,11 @@ export default function CustomerOrderPage() {
       return;
     }
 
+    if (category === 'service' && (!customerBudget)) {
+      showToast('Please enter your budget', 'error');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const formData = new FormData();
@@ -241,7 +253,8 @@ export default function CustomerOrderPage() {
       }
 
       if (category === 'service') {
-        formData.append('service_ids', JSON.stringify(selectedServices.filter(id => id)));
+        formData.append('selected_services', JSON.stringify(selectedServices.filter(id => id)));
+        formData.append('estimated_price', customerBudget);
       } else {
         const mappedBins = selectedBins.filter(b => b.typeId && b.sizeId).map(b => ({
           bin_type_id: b.typeId,
@@ -283,6 +296,10 @@ export default function CustomerOrderPage() {
       }
       if (category !== 'service' && (!selectedBins[0].typeId || !selectedBins[0].sizeId)) {
         showToast('Please complete bin selection', 'error');
+        return;
+      }
+      if (category === 'service' && (!customerBudget)) {
+        showToast('Please enter your budget', 'error');
         return;
       }
       // Dates only required for non-commercial (mirrors mobile app)
@@ -433,7 +450,7 @@ export default function CustomerOrderPage() {
                                 const availableSizes = binSizesMap[t.id] || [];
                                 let isTypeDisabled = false;
                                 if (availableSizes.length > 0) {
-                                  isTypeDisabled = availableSizes.every(s => 
+                                  isTypeDisabled = availableSizes.every(s =>
                                     selectedBins.some((b, i) => i !== index && b.typeId === t.id.toString() && b.sizeId === s.id.toString())
                                   );
                                 } else {
@@ -457,7 +474,7 @@ export default function CustomerOrderPage() {
                               className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50">
                               <option value="">Select Size</option>
                               {sizes.map((s: any) => {
-                                const isSizeDisabled = selectedBins.some((b, i) => 
+                                const isSizeDisabled = selectedBins.some((b, i) =>
                                   i !== index && b.typeId === bin.typeId && b.sizeId === s.id.toString()
                                 );
                                 return (
@@ -492,6 +509,22 @@ export default function CustomerOrderPage() {
                   </div>
                 )}
               </div>
+
+              {category === 'service' && (
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">Price Estimation</h2>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Price (Your Budget - $) *
+                      </label>
+                      <input type="number" value={customerBudget} onChange={e => setCustomerBudget(e.target.value)}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <h2 className="text-xl font-bold text-gray-900 mb-4">When do you need it?</h2>
