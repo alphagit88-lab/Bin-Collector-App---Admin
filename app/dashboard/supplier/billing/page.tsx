@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
+import BillTemplate from '@/components/dashboard/BillTemplate';
 
 interface Invoice {
   id: number;
@@ -19,9 +20,10 @@ export default function SupplierBillingPage() {
   const { showToast } = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [printData, setPrintData] = useState<Invoice | null>(null);
 
   useEffect(() => {
-    if (user?.canViewBilling) {
+    if (user?.role === 'supplier' || user?.canViewBilling) {
       fetchInvoices();
     } else {
       setLoading(false);
@@ -30,25 +32,31 @@ export default function SupplierBillingPage() {
 
   const fetchInvoices = async () => {
     try {
-      const response = await api.get<{ invoices: Invoice[] }>('/billing/invoices');
-      if (response.success && response.data) {
-        setInvoices(response.data.invoices);
+      const response = await api.get<any>('/billing/invoices');
+      if (response.success) {
+        const invoiceList = (response as any).invoices || response.data?.invoices || [];
+        setInvoices(invoiceList);
+      } else {
+        showToast(response.message || 'Failed to load bills', 'error');
       }
     } catch (error) {
-      console.error('Error fetching invoices:', error);
-      showToast('Failed to load invoices', 'error');
+      console.error('Error fetching bills:', error);
+      showToast('Failed to load bills', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDownloadPDF = (invoice: Invoice) => {
-    // Since there's no dedicated backend PDF endpoint, we simulate a PDF download
-    // by triggering a print dialog which users can "Save as PDF"
+    setPrintData(invoice);
     showToast('Preparing PDF for download. Please select "Save as PDF" in the print dialog.', 'success');
+    
+    // Allow React state to update and render the template before printing
     setTimeout(() => {
       window.print();
-    }, 1000);
+      // Clear print data after printing so it hides again
+      setTimeout(() => setPrintData(null), 500);
+    }, 500);
   };
 
   if (loading) {
@@ -59,7 +67,7 @@ export default function SupplierBillingPage() {
     );
   }
 
-  if (!user?.canViewBilling) {
+  if (!(user?.role === 'supplier' || user?.canViewBilling)) {
     return (
       <div className="min-h-screen p-8 bg-gray-50 flex items-center justify-center">
         <div className="dashboard-card rounded-lg p-8 bg-white shadow-sm border border-gray-100 max-w-lg text-center">
@@ -68,7 +76,7 @@ export default function SupplierBillingPage() {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Access Restricted</h2>
           <p className="text-gray-600 mb-6">
-            Your billing section is currently disabled. Please contact the administrator to enable invoice viewing for your account.
+            Your billing section is currently disabled. Please contact the administrator to enable bill viewing for your account.
           </p>
         </div>
       </div>
@@ -90,7 +98,7 @@ export default function SupplierBillingPage() {
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center">
             <div className="mb-6 md:mb-0">
               <h1 className="text-3xl font-bold mb-2">Billing Center</h1>
-              <p className="text-green-100 font-medium">View and manage your invoices</p>
+              <p className="text-green-100 font-medium">View and manage your bills</p>
             </div>
             
             <div className="flex bg-white/20 rounded-xl p-4 backdrop-blur-sm border border-white/20">
@@ -107,85 +115,79 @@ export default function SupplierBillingPage() {
         </div>
 
         {/* Invoice List */}
-        <div className="space-y-4 printable-area">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden printable-area">
           {invoices.length === 0 ? (
-            <div className="dashboard-card rounded-lg p-12 bg-white shadow-sm border border-gray-100 text-center">
-              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            <div className="text-center py-20">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
-              <h3 className="text-lg font-medium text-gray-800 mb-1">No Invoices Found</h3>
-              <p className="text-gray-500">You don't have any invoices yet.</p>
+              <p className="text-gray-500 font-medium">No bills found</p>
             </div>
           ) : (
-            invoices.map((invoice) => (
-              <div key={invoice.id} className="dashboard-card bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row items-center justify-between transition-all hover:shadow-md">
-                
-                {/* Left side info */}
-                <div className="flex-1 flex flex-col md:flex-row md:items-center w-full">
-                  <div className="mb-4 md:mb-0 md:mr-8">
-                    <p className="text-sm text-gray-500 font-medium uppercase tracking-wider mb-1">Invoice Number</p>
-                    <p className="text-lg font-bold text-gray-800">{invoice.invoice_number}</p>
-                    <p className="text-xs text-gray-400 mt-1">{new Date(invoice.created_at).toLocaleDateString()}</p>
-                  </div>
-                  
-                  <div className="mb-4 md:mb-0 md:mr-8 hidden md:block w-px h-12 bg-gray-100"></div>
-                  
-                  <div className="mb-4 md:mb-0 md:mr-8">
-                    <p className="text-sm text-gray-500 font-medium uppercase tracking-wider mb-1">Order ID</p>
-                    <p className="font-semibold text-gray-700">#{invoice.service_request_number}</p>
-                  </div>
-
-                  <div className="mb-4 md:mb-0 md:mr-8 hidden md:block w-px h-12 bg-gray-100"></div>
-
-                  <div className="mb-4 md:mb-0 md:mr-8 flex-1">
-                    <p className="text-sm text-gray-500 font-medium uppercase tracking-wider mb-1">Amount</p>
-                    <p className="text-xl font-bold text-gray-800">${parseFloat(invoice.amount).toFixed(2)}</p>
-                  </div>
-                </div>
-
-                {/* Right side actions */}
-                <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full md:w-auto mt-4 md:mt-0">
-                  <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider w-full sm:w-auto text-center ${
-                    invoice.status === 'paid' ? 'bg-green-100 text-green-700' : 
-                    invoice.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700'
-                  }`}>
-                    {invoice.status}
-                  </span>
-                  
-                  <button 
-                    onClick={() => handleDownloadPDF(invoice)}
-                    className="w-full sm:w-auto bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 font-medium px-4 py-2 rounded-lg transition-colors flex items-center justify-center whitespace-nowrap"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Download PDF
-                  </button>
-                </div>
-              </div>
-            ))
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="px-6 py-4 font-semibold">Bill Details</th>
+                    <th className="px-6 py-4 font-semibold">Order ID</th>
+                    <th className="px-6 py-4 font-semibold">Amount</th>
+                    <th className="px-6 py-4 font-semibold text-center">Status</th>
+                    <th className="px-6 py-4 font-semibold text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {invoices.map(invoice => (
+                    <tr key={invoice.id} className="hover:bg-gray-50/50 transition-colors group">
+                      <td className="px-6 py-4">
+                        <p className="font-semibold text-gray-900">{invoice.invoice_number}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{new Date(invoice.created_at).toLocaleDateString()}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-gray-600 font-medium">#{invoice.service_request_number || '-'}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="font-bold text-gray-900">${parseFloat(invoice.amount).toFixed(2)}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-center">
+                          <span className={`px-2.5 py-1 text-xs font-bold uppercase tracking-wider rounded-full border ${
+                            invoice.status === 'paid' ? 'bg-green-100 text-green-700 border-green-200' : 
+                            invoice.status === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200' : 
+                            invoice.status === 'void' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-gray-100 text-gray-700 border-gray-200'
+                          }`}>
+                            {invoice.status}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-center">
+                          <button 
+                            onClick={() => handleDownloadPDF(invoice)}
+                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center justify-center whitespace-nowrap text-sm shadow-sm"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            PDF
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
       
-      {/* Hide printable-area components in browser, only show them when printing */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .printable-area, .printable-area * {
-            visibility: visible;
-          }
-          .printable-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          button {
-            display: none !important;
-          }
-        }
-      `}} />
+      {/* Hidden Document Template that only shows up when printing */}
+      {printData && user && (
+        <BillTemplate 
+          data={printData} 
+          user={user} 
+        />
+      )}
     </div>
   );
 }

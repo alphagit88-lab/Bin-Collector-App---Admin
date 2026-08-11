@@ -71,7 +71,7 @@ export default function CreateOrderPage() {
     if (files) {
       const fileList = Array.from(files);
       setAttachments(prev => [...prev, ...fileList]);
-      
+
       fileList.forEach(file => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -206,22 +206,22 @@ export default function CreateOrderPage() {
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setLocation(value);
-    
+
     if (debounceTimer) {
       clearTimeout(debounceTimer);
     }
-    
+
     const timer = setTimeout(() => {
       fetchLocationSuggestions(value);
     }, 500);
-    
+
     setDebounceTimer(timer);
   };
 
   const selectSuggestion = async (suggestion: any) => {
     setLocation(suggestion.display_name);
     setShowSuggestions(false);
-    
+
     if (typeof window !== 'undefined' && (window as any).google) {
       const geocoder = new (window as any).google.maps.Geocoder();
       geocoder.geocode({ placeId: suggestion.place_id }, (results: any, status: any) => {
@@ -370,7 +370,7 @@ export default function CreateOrderPage() {
   const updateBinRow = (index: number, field: keyof SelectedBin, value: any) => {
     const newBins = [...selectedBins];
     newBins[index] = { ...newBins[index], [field]: value };
-    
+
     if (field === 'bin_type_id') {
       newBins[index].bin_size_id = null;
       newBins[index].price = '';
@@ -417,7 +417,7 @@ export default function CreateOrderPage() {
       formData.append('end_date', endDate);
       formData.append('instructions', instructions);
       formData.append('payment_method', 'cash');
-      
+
       if (poNumber) {
         formData.append('po_number', poNumber);
       }
@@ -533,7 +533,7 @@ export default function CreateOrderPage() {
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-green-600"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
               Order Details
             </h2>
-            
+
             <div className="mb-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Service Category*</label>
               <div className="flex gap-2">
@@ -542,11 +542,10 @@ export default function CreateOrderPage() {
                     key={cat}
                     type="button"
                     onClick={() => setServiceCategory(cat)}
-                    className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
-                      serviceCategory === cat 
-                        ? 'border-green-500 bg-green-50 text-green-700 font-bold' 
+                    className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${serviceCategory === cat
+                        ? 'border-green-500 bg-green-50 text-green-700 font-bold'
                         : 'border-gray-100 bg-gray-50 text-gray-600 hover:border-gray-200'
-                    }`}
+                      }`}
                   >
                     {cat.charAt(0).toUpperCase() + cat.slice(1)}
                   </button>
@@ -754,15 +753,13 @@ export default function CreateOrderPage() {
                         key={category.id}
                         type="button"
                         onClick={() => toggleService(category.id)}
-                        className={`flex items-center p-3 rounded-lg border transition-all ${
-                          selectedServices.includes(category.id)
+                        className={`flex items-center p-3 rounded-lg border transition-all ${selectedServices.includes(category.id)
                             ? 'border-green-500 bg-green-50 text-green-700'
                             : 'border-gray-200 hover:border-gray-300'
-                        }`}
+                          }`}
                       >
-                        <div className={`w-5 h-5 rounded border mr-2 flex items-center justify-center ${
-                          selectedServices.includes(category.id) ? 'bg-green-500 border-green-500' : 'bg-white'
-                        }`}>
+                        <div className={`w-5 h-5 rounded border mr-2 flex items-center justify-center ${selectedServices.includes(category.id) ? 'bg-green-500 border-green-500' : 'bg-white'
+                          }`}>
                           {selectedServices.includes(category.id) && (
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                           )}
@@ -865,7 +862,7 @@ export default function CreateOrderPage() {
                   />
                 </div>
               )}
-              
+
               {serviceCategory !== 'service' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Instructions / Notes</label>
@@ -894,7 +891,7 @@ export default function CreateOrderPage() {
                       </button>
                     </div>
                   ))}
-                  
+
                   {attachments.length < 10 && (
                     <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-green-500 transition-colors">
                       <span className="text-xl text-gray-400 font-bold">+</span>
@@ -939,7 +936,7 @@ export default function CreateOrderPage() {
                   )}
                   {calculatedPrice.additional_duration_charge > 0 && (
                     <div className="flex justify-between text-sm text-red-600">
-                      <span>Extra Days ({calculatedPrice.exceeded_days} day(s)):</span>
+                      <span>Extra Days - {calculatedPrice.exceeded_days} day(s):</span>
                       <span className="font-semibold">+${calculatedPrice.additional_duration_charge.toFixed(2)}</span>
                     </div>
                   )}

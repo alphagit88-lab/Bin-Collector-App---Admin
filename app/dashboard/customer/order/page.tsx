@@ -22,7 +22,7 @@ export default function CustomerOrderPage() {
 
   // Basic Flow State
   const [step, setStep] = useState(1);
-  const [category, setCategory] = useState<'residential' | 'commercial' | 'service'>('commercial');
+  const [category, setCategory] = useState<'residential' | 'commercial' | 'service'>('residential');
 
   // Location State
   const [location, setLocation] = useState('');
@@ -57,7 +57,9 @@ export default function CustomerOrderPage() {
   const [loadingEstimate, setLoadingEstimate] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
-
+  const [splitOrders, setSplitOrders] = useState<any[] | null>(null);
+  const [assignedSupplierId, setAssignedSupplierId] = useState<string | null>(null);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY || '',
@@ -174,12 +176,17 @@ export default function CustomerOrderPage() {
       (category === 'residential' && (!startDate || !endDate))
     ) {
       setEstimatedPrice(null);
+      setEstimateError(null);
       return;
     }
     setLoadingEstimate(true);
+    setEstimateError(null);
+    setEstimatedPrice(null);
+    setSplitOrders(null);
+    setAssignedSupplierId(null);
     try {
       const payload: any = {
-        category,
+        service_category: category,
         start_date: startDate || null,
         end_date: endDate || null,
         lat: latitude,
@@ -203,9 +210,14 @@ export default function CustomerOrderPage() {
           additional_duration_charge: res.data.additional_duration_charge || 0,
           exceeded_days: res.data.exceeded_days || null
         });
+        setSplitOrders(res.data.splits || null);
+        setAssignedSupplierId(res.data.supplier_id || null);
+      } else {
+        setEstimateError(res.message || 'No suppliers available for this selection.');
       }
     } catch (e) {
       console.error(e);
+      setEstimateError('Failed to calculate price. Please try again.');
     } finally {
       setLoadingEstimate(false);
     }
@@ -255,26 +267,71 @@ export default function CustomerOrderPage() {
       if (category === 'service') {
         formData.append('selected_services', JSON.stringify(selectedServices.filter(id => id)));
         formData.append('estimated_price', customerBudget);
+        attachments.forEach((file) => {
+          formData.append('attachments', file);
+        });
+
+        const response = await api.post('/bookings', formData);
+        if (response.success) {
+          showToast('Order created successfully!', 'success');
+          router.push('/dashboard/customer/bookings');
+        } else {
+          showToast(response.message || 'Failed to create order', 'error');
+        }
       } else {
-        const mappedBins = selectedBins.filter(b => b.typeId && b.sizeId).map(b => ({
-          bin_type_id: b.typeId,
-          bin_size_id: b.sizeId,
-          quantity: b.quantity || '1'
-        }));
-        formData.append('bins', JSON.stringify(mappedBins));
-      }
+        if (splitOrders && splitOrders.length > 0) {
+          const promises = splitOrders.map(split => {
+            const splitFormData = new FormData();
+            splitFormData.append('service_category', category);
+            splitFormData.append('location', location);
+            splitFormData.append('latitude', latitude.toString());
+            splitFormData.append('longitude', longitude.toString());
+            if (startDate) splitFormData.append('start_date', startDate);
+            if (endDate) splitFormData.append('end_date', endDate);
+            splitFormData.append('contact_number', contactNumber);
+            splitFormData.append('contact_email', contactEmail);
+            splitFormData.append('instructions', instructions);
+            splitFormData.append('payment_method', paymentMethod);
+            if (category === 'commercial') {
+              if (selectedProject) splitFormData.append('project_id', selectedProject);
+              if (poNumber) splitFormData.append('po_number', poNumber);
+            }
+            if (split.supplier_id) splitFormData.append('supplier_id', split.supplier_id.toString());
+            splitFormData.append('bins', JSON.stringify(split.items));
+            attachments.forEach((file) => splitFormData.append('attachments', file));
+            return api.post('/bookings', splitFormData);
+          });
 
-      attachments.forEach((file) => {
-        formData.append('attachments', file);
-      });
+          const results = await Promise.all(promises);
+          const anyFailed = results.some(r => !r.success);
+          if (anyFailed) {
+            showToast('Some split orders failed to create. Please check your bookings.', 'error');
+          } else {
+            showToast(`Successfully created ${splitOrders.length} separated orders!`, 'success');
+            router.push('/dashboard/customer/bookings');
+          }
+        } else {
+          const mappedBins = selectedBins.filter(b => b.typeId && b.sizeId).map(b => ({
+            bin_type_id: b.typeId,
+            bin_size_id: b.sizeId,
+            quantity: b.quantity || '1'
+          }));
+          formData.append('bins', JSON.stringify(mappedBins));
+          if (assignedSupplierId) {
+            formData.append('supplier_id', assignedSupplierId);
+          }
+          attachments.forEach((file) => {
+            formData.append('attachments', file);
+          });
 
-      const response = await api.post('/bookings', formData);
-
-      if (response.success) {
-        showToast('Order created successfully!', 'success');
-        router.push('/dashboard/customer/bookings');
-      } else {
-        showToast(response.message || 'Failed to create order', 'error');
+          const response = await api.post('/bookings', formData);
+          if (response.success) {
+            showToast('Order created successfully!', 'success');
+            router.push('/dashboard/customer/bookings');
+          } else {
+            showToast(response.message || 'Failed to create order', 'error');
+          }
+        }
       }
     } catch (error) {
       showToast('An error occurred during submission', 'error');
@@ -361,8 +418,8 @@ export default function CustomerOrderPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 {[
-                  { id: 'commercial', label: 'Commercial', icon: '🏢' },
                   { id: 'residential', label: 'Residential', icon: '🏠' },
+                  { id: 'commercial', label: 'Commercial', icon: '🏢' },
                   { id: 'service', label: 'Other Service', icon: '🛠️' }
                 ].map(cat => (
                   <button key={cat.id} onClick={() => setCategory(cat.id as any)}
@@ -631,56 +688,135 @@ export default function CustomerOrderPage() {
                     <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
                       <h3 className="font-bold text-gray-900 mb-4">Order Summary</h3>
 
+                      {splitOrders && splitOrders.length > 0 && (
+                        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-xl text-orange-800 text-sm">
+                          <p className="font-semibold mb-1">Notice: Separated Orders Required</p>
+                          <p>The selected bins are not all available from a single supplier in this location. Your request will be processed as <strong>{splitOrders.length} separated orders</strong> to fulfill all items.</p>
+                        </div>
+                      )}
+
                       {loadingEstimate ? (
                         <div className="flex justify-center py-6"><div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div></div>
                       ) : estimatedPrice ? (
                         <>
-                          <div className="space-y-2 mb-4 pb-4 border-b border-gray-200 text-sm">
-                            <div className="flex justify-between text-gray-600">
-                              <span>Service</span>
-                              <span className="font-medium text-gray-900 capitalize">{category}</span>
+                          {splitOrders && splitOrders.length > 0 ? (
+                            <div className="space-y-4">
+                              {splitOrders.map((split, idx) => (
+                                <div key={idx} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm text-sm">
+                                  <h4 className="font-bold text-gray-800 mb-3 border-b pb-2">Order {idx + 1}</h4>
+                                  <div className="space-y-1.5">
+                                    <div className="flex justify-between text-gray-600">
+                                      <span>Service</span>
+                                      <span className="font-medium text-gray-900 capitalize">{category}</span>
+                                    </div>
+                                    {startDate && endDate && (
+                                      <div className="flex justify-between text-gray-600">
+                                        <span>Dates</span>
+                                        <span className="font-medium text-gray-900">{new Date(startDate).toLocaleDateString()} – {new Date(endDate).toLocaleDateString()}</span>
+                                      </div>
+                                    )}
+                                    {category !== 'commercial' && estimatedPrice.duration_days && (
+                                      <div className="flex justify-between text-gray-600">
+                                        <span>Duration</span>
+                                        <span className="font-medium text-gray-900">{estimatedPrice.duration_days} day(s)</span>
+                                      </div>
+                                    )}
+                                    {category !== 'commercial' && (
+                                      <div className="flex justify-between text-gray-600">
+                                        <span>Base Price</span>
+                                        <span className="font-medium text-gray-900">${split.base_price?.toFixed(2) || '0.00'}</span>
+                                      </div>
+                                    )}
+                                    {category !== 'commercial' && (split.additional_duration_charge > 0) && (
+                                      <div className="flex justify-between text-red-500">
+                                        <span>Extra Days - {estimatedPrice.exceeded_days} day(s)</span>
+                                        <span className="font-medium">+${split.additional_duration_charge.toFixed(2)}</span>
+                                      </div>
+                                    )}
+                                    {category !== 'commercial' && (
+                                      <>
+                                        <div className="flex justify-between text-gray-600">
+                                          <span>Subtotal</span>
+                                          <span className="font-medium text-gray-900">${split.subtotal?.toFixed(2) || '0.00'}</span>
+                                        </div>
+                                        <div className="flex justify-between text-gray-600">
+                                          <span>GST ({estimatedPrice.gst_rate}%)</span>
+                                          <span className="font-medium text-gray-900">${split.gst_amount?.toFixed(2) || '0.00'}</span>
+                                        </div>
+                                        <div className="flex justify-between font-bold text-gray-800 pt-2 border-t mt-1">
+                                          <span>Order Total</span>
+                                          <span>${split.total?.toFixed(2) || '0.00'}</span>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+
+                              <div className="flex justify-between items-center pt-4 border-t border-gray-300">
+                                <span className="font-bold text-gray-900">{category === 'commercial' ? 'Pricing' : 'Grand Total'}</span>
+                                {category === 'commercial' ? (
+                                  <span className="font-bold text-sm text-gray-500 italic">Quoted on Invoice</span>
+                                ) : (
+                                  <span className="font-black text-2xl text-green-600">${estimatedPrice.total.toFixed(2)}</span>
+                                )}
+                              </div>
                             </div>
-                            {startDate && endDate && (
-                              <div className="flex justify-between text-gray-600">
-                                <span>Dates</span>
-                                <span className="font-medium text-gray-900">{new Date(startDate).toLocaleDateString()} – {new Date(endDate).toLocaleDateString()}</span>
-                              </div>
-                            )}
-                            {/* Duration breakdown — non-commercial only, mirrors mobile */}
-                            {category !== 'commercial' && estimatedPrice.duration_days && (
-                              <div className="flex justify-between text-gray-600">
-                                <span>Duration</span>
-                                <span className="font-medium text-gray-900">{estimatedPrice.duration_days} day(s)</span>
-                              </div>
-                            )}
-                            {category !== 'commercial' && (estimatedPrice.additional_duration_charge ?? 0) > 0 && (
-                              <div className="flex justify-between text-red-500">
-                                <span>Extra Days ({estimatedPrice.exceeded_days} day(s))</span>
-                                <span className="font-medium">+${estimatedPrice.additional_duration_charge.toFixed(2)}</span>
-                              </div>
-                            )}
-                            {category !== 'commercial' && (
-                              <>
+                          ) : (
+                            <>
+                              <div className="space-y-2 mb-4 pb-4 border-b border-gray-200 text-sm">
                                 <div className="flex justify-between text-gray-600">
-                                  <span>Subtotal</span>
-                                  <span className="font-medium text-gray-900">${estimatedPrice.subtotal.toFixed(2)}</span>
+                                  <span>Service</span>
+                                  <span className="font-medium text-gray-900 capitalize">{category}</span>
                                 </div>
-                                <div className="flex justify-between text-gray-600">
-                                  <span>GST ({estimatedPrice.gst_rate}%)</span>
-                                  <span className="font-medium text-gray-900">${estimatedPrice.gst_amount.toFixed(2)}</span>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="font-bold text-gray-900">{category === 'commercial' ? 'Pricing' : 'Estimated Total'}</span>
-                            {category === 'commercial' ? (
-                              <span className="font-bold text-sm text-gray-500 italic">Quoted on Invoice</span>
-                            ) : (
-                              <span className="font-black text-2xl text-green-600">${estimatedPrice.total.toFixed(2)}</span>
-                            )}
-                          </div>
+                                {startDate && endDate && (
+                                  <div className="flex justify-between text-gray-600">
+                                    <span>Dates</span>
+                                    <span className="font-medium text-gray-900">{new Date(startDate).toLocaleDateString()} – {new Date(endDate).toLocaleDateString()}</span>
+                                  </div>
+                                )}
+                                {/* Duration breakdown — non-commercial only, mirrors mobile */}
+                                {category !== 'commercial' && estimatedPrice.duration_days && (
+                                  <div className="flex justify-between text-gray-600">
+                                    <span>Duration</span>
+                                    <span className="font-medium text-gray-900">{estimatedPrice.duration_days} day(s)</span>
+                                  </div>
+                                )}
+                                {category !== 'commercial' && (estimatedPrice.additional_duration_charge ?? 0) > 0 && (
+                                  <div className="flex justify-between text-red-500">
+                                    <span>Extra Days - {estimatedPrice.exceeded_days} day(s)</span>
+                                    <span className="font-medium">+${estimatedPrice.additional_duration_charge.toFixed(2)}</span>
+                                  </div>
+                                )}
+                                {category !== 'commercial' && (
+                                  <>
+                                    <div className="flex justify-between text-gray-600">
+                                      <span>Subtotal</span>
+                                      <span className="font-medium text-gray-900">${estimatedPrice.subtotal.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-gray-600">
+                                      <span>GST ({estimatedPrice.gst_rate}%)</span>
+                                      <span className="font-medium text-gray-900">${estimatedPrice.gst_amount.toFixed(2)}</span>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="font-bold text-gray-900">{category === 'commercial' ? 'Pricing' : 'Estimated Total'}</span>
+                                {category === 'commercial' ? (
+                                  <span className="font-bold text-sm text-gray-500 italic">Quoted on Invoice</span>
+                                ) : (
+                                  <span className="font-black text-2xl text-green-600">${estimatedPrice.total.toFixed(2)}</span>
+                                )}
+                              </div>
+                            </>
+                          )}
                         </>
+                      ) : estimateError ? (
+                        <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                          <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                          <span>{estimateError}</span>
+                        </div>
                       ) : (
                         <p className="text-sm text-gray-400 text-center py-4">Calculating price...</p>
                       )}
@@ -704,7 +840,7 @@ export default function CustomerOrderPage() {
                 Next Step
               </button>
             ) : (
-              <button onClick={handleSubmit} disabled={submitting} className="px-8 py-2.5 text-white font-bold rounded-xl transition-all hover:opacity-90 shadow-md disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #29B554 0%, #6EAD16 100%)' }}>
+              <button onClick={handleSubmit} disabled={submitting || (!!estimateError && category !== 'service')} className="px-8 py-2.5 text-white font-bold rounded-xl transition-all hover:opacity-90 shadow-md disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: 'linear-gradient(135deg, #29B554 0%, #6EAD16 100%)' }}>
                 {submitting ? 'Processing...' : (category !== 'commercial' && paymentMethod === 'online') ? 'Place Order & Pay' : 'Place Order'}
               </button>
             )}

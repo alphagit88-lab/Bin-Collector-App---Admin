@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
+import BillTemplate from '@/components/dashboard/BillTemplate';
 
 // Field names match mobile app's BillingScreen.tsx and backend aliases
 interface Invoice {
@@ -22,6 +23,7 @@ export default function CustomerBillingPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [printData, setPrintData] = useState<Invoice | null>(null);
 
   useEffect(() => {
     // Only fetch if user is allowed to view billing
@@ -51,6 +53,17 @@ export default function CustomerBillingPage() {
     }
   };
 
+  const handleDownloadPDF = (invoice: Invoice) => {
+    setPrintData(invoice);
+    showToast('Preparing PDF for download. Please select "Save as PDF" in the print dialog.', 'success');
+    
+    // Allow React state to update and render the template before printing
+    setTimeout(() => {
+      window.print();
+      // Clear print data after printing so it hides again
+      setTimeout(() => setPrintData(null), 500);
+    }, 500);
+  };
 
   const filteredInvoices = invoices.filter(i =>
     !searchQuery ||
@@ -140,6 +153,7 @@ export default function CustomerBillingPage() {
                     <th className="px-6 py-4 font-semibold">Order ID</th>
                     <th className="px-6 py-4 font-semibold">Amount</th>
                     <th className="px-6 py-4 font-semibold text-center">Status</th>
+                    <th className="px-6 py-4 font-semibold text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -162,6 +176,17 @@ export default function CustomerBillingPage() {
                           </span>
                         </div>
                       </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-center">
+                          <button 
+                            onClick={() => handleDownloadPDF(invoice)}
+                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center justify-center whitespace-nowrap text-sm shadow-sm"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            PDF
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -170,6 +195,14 @@ export default function CustomerBillingPage() {
           )}
         </div>
       </div>
+      
+      {/* Hidden Document Template that only shows up when printing */}
+      {printData && user && (
+        <BillTemplate 
+          data={printData} 
+          user={user} 
+        />
+      )}
     </div>
   );
 }
