@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
+import JobDetailModal from '@/components/dashboard/JobDetailModal';
 
 const mapContainerStyle = {
   width: '100%',
@@ -16,7 +17,7 @@ const defaultCenter = {
   lng: -79.3832
 };
 
-const GOOGLE_LIBRARIES: any[] = ["places"];
+const GOOGLE_LIBRARIES: ("places" | "geometry" | "drawing" | "visualization")[] = ['places'];
 
 interface ServiceRequest {
   id: number;
@@ -52,6 +53,7 @@ export default function SupplierRequestsPage() {
   const [selectedAttachments, setSelectedAttachments] = useState<string[] | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
+  const [viewingJobId, setViewingJobId] = useState<number | null>(null);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -169,7 +171,6 @@ export default function SupplierRequestsPage() {
             <thead>
               <tr>
                 <th>Request ID</th>
-                <th>Customer</th>
                 <th>Bin Details</th>
                 <th>Location</th>
                 <th>Dates</th>
@@ -180,7 +181,7 @@ export default function SupplierRequestsPage() {
             <tbody>
               {requests.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>
                     No pending requests found
                   </td>
                 </tr>
@@ -189,14 +190,6 @@ export default function SupplierRequestsPage() {
                   <tr key={req.id}>
                     <td style={{ fontWeight: 500, fontFamily: 'monospace', fontSize: '0.875rem' }}>
                       {req.request_id}
-                    </td>
-                    <td>
-                      <div>
-                        <div style={{ fontWeight: 500 }}>{req.customer_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                          {req.customer_phone}
-                        </div>
-                      </div>
                     </td>
                     <td>
                       <div>
@@ -256,16 +249,22 @@ export default function SupplierRequestsPage() {
                       })()}
                     </td>
                     <td>
-                      <div className="flex gap-2">
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => setViewingJobId(req.id)}
+                          className="btn btn-outline btn-sm cursor-pointer"
+                        >
+                          View
+                        </button>
                         <button 
                           onClick={() => handleAcceptRequest(req.id)}
-                          className="btn btn-primary btn-sm"
+                          className="btn btn-primary btn-sm cursor-pointer"
                         >
                           Accept
                         </button>
                         <button 
                           onClick={() => handleDeclineRequest(req.id)}
-                          className="px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 text-sm font-medium"
+                          className="btn btn-danger btn-sm cursor-pointer"
                         >
                           Decline
                         </button>
@@ -320,22 +319,25 @@ export default function SupplierRequestsPage() {
                           </span>
                         )}
                       </div>
-                      <div className="text-sm mb-1">
-                        <span className="font-medium">Customer:</span> {selectedRequest.customer_name}
-                      </div>
-                      <div className="text-sm mb-1 text-gray-600">
-                        {selectedRequest.customer_phone}
-                      </div>
                       <div className="text-xs text-gray-500 mt-2 mb-3">
                         {selectedRequest.location}
                       </div>
                       <div className="flex gap-2 w-full pt-2 border-t">
                         <button 
                           onClick={() => {
+                            setViewingJobId(selectedRequest.id);
+                            setSelectedRequest(null);
+                          }}
+                          className="btn btn-outline btn-sm cursor-pointer flex-1"
+                        >
+                          View
+                        </button>
+                        <button 
+                          onClick={() => {
                             setSelectedRequest(null);
                             handleAcceptRequest(selectedRequest.id);
                           }}
-                          className="flex-1 py-1.5 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-medium rounded transition-colors"
+                          className="btn btn-primary btn-sm cursor-pointer flex-1"
                         >
                           Accept
                         </button>
@@ -344,7 +346,7 @@ export default function SupplierRequestsPage() {
                             setSelectedRequest(null);
                             handleDeclineRequest(selectedRequest.id);
                           }}
-                          className="flex-1 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium rounded transition-colors"
+                          className="btn btn-danger btn-sm cursor-pointer flex-1"
                         >
                           Decline
                         </button>
@@ -405,6 +407,15 @@ export default function SupplierRequestsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Job Detail Modal */}
+      {viewingJobId && (
+        <JobDetailModal
+          jobId={viewingJobId}
+          onClose={() => setViewingJobId(null)}
+          onJobUpdated={fetchRequests}
+        />
       )}
     </div >
   );

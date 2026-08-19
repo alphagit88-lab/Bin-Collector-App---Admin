@@ -326,11 +326,19 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
     }
   };
 
-  // Match mobile app's BinAssignmentModal: filter by status=available AND type/size compatibility
+  // Filter compatible bins: correct type/size AND not already assigned to another item
   const getCompatibleBins = (item: OrderItem) => {
+    // Collect all bin codes assigned to OTHER items
+    const usedCodes = new Set(
+      Object.entries(binAssignments)
+        .filter(([id]) => parseInt(id) !== item.id)
+        .map(([, code]) => code)
+        .filter(Boolean)
+    );
     return availableBins.filter(
       (bin) =>
         bin.status === 'available' &&
+        !usedCodes.has(bin.bin_code) &&
         (bin.bin_type_name === item.bin_type_name || bin.bin_type_id === (item as any).bin_type_id) &&
         (bin.bin_size === item.bin_size || bin.bin_size_id === (item as any).bin_size_id)
     );
@@ -514,8 +522,8 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
                           {/* Bin actions */}
                           {showItemActions && (
                             <div className="flex flex-col gap-2 min-w-[160px]">
-                              {/* Loaded state update */}
-                              {(item.status === 'pending' || item.status === 'confirmed' || !item.status) && (
+                              {/* Assign Bin & Load (Only if not assigned yet) */}
+                              {!item.bin_code && (item.status === 'pending' || item.status === 'confirmed' || item.status === 'cash_collected' || !item.status) && (
                                 <button
                                   onClick={() => {
                                     setSelectedItemForBin(item);
@@ -523,12 +531,12 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
                                   }}
                                   className="w-full text-center px-3 py-2 bg-gray-800 text-white rounded-lg text-xs font-bold hover:bg-black transition-all"
                                 >
-                                  {item.bin_code ? 'Change Bin Code' : 'Assign Bin & Load'}
+                                  Assign Bin & Load
                                 </button>
                               )}
 
-                              {/* Deliver bin action */}
-                              {item.status === 'loaded' && (
+                              {/* Deliver bin action (Only if already assigned/loaded) */}
+                              {item.bin_code && (item.status === 'loaded' || item.status === 'cash_collected') && (
                                 <div className="space-y-2">
                                   {!preview ? (
                                     <label className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold cursor-pointer transition-all border border-gray-300 border-dashed">
@@ -603,8 +611,16 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
                 </h3>
                 <div className="flex flex-col sm:flex-row justify-between gap-4">
                   <div>
-                    <h4 className="font-bold text-gray-900">{job.customer_name}</h4>
-                    {job.customer_phone && <p className="text-sm text-gray-600 font-mono mt-0.5">{job.customer_phone}</p>}
+                    {job.status === 'pending' ? (
+                      <p className="text-sm font-semibold text-gray-500 italic">
+                        Customer details will be revealed after accepting the request
+                      </p>
+                    ) : (
+                      <>
+                        <h4 className="font-bold text-gray-900">{job.customer_name}</h4>
+                        {job.customer_phone && <p className="text-sm text-gray-600 font-mono mt-0.5">{job.customer_phone}</p>}
+                      </>
+                    )}
                   </div>
                   
                   {job.status !== 'pending' && (
@@ -1024,43 +1040,66 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
             </div>
 
             <p className="text-sm text-gray-500 mb-4">
-              Assign physical code from available inventory matching type and size to load bin onto delivery truck.
+              Assign physical bin from available inventory matching type and size to load bin onto delivery truck.
             </p>
 
             <div className="space-y-4 max-h-[300px] overflow-y-auto mb-6">
-              {(selectedItemForBin ? [selectedItemForBin] : (job?.orderItems || [])).map(item => {
-                const compatible = getCompatibleBins(item);
-                
-                return (
-                  <div key={item.id} className="p-3 bg-gray-50 border rounded-xl flex flex-col gap-2">
-                    <p className="text-xs font-bold text-gray-700">{item.bin_type_name} ({item.bin_size})</p>
-                    <select
-                      value={binAssignments[item.id] || ''}
-                      onChange={(e) => {
-                        setBinAssignments(prev => ({
-                          ...prev,
-                          [item.id]: e.target.value
-                        }));
-                      }}
-                      className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 text-sm outline-none cursor-pointer"
-                    >
-                      <option value="">-- Choose Bin Code --</option>
-                      {compatible.map(b => (
-                        <option 
-                          key={b.id} 
-                          value={b.bin_code}
-                          disabled={Object.entries(binAssignments).some(([id, code]) => parseInt(id) !== item.id && code === b.bin_code)}
-                        >
-                          {b.bin_code}
-                        </option>
-                      ))}
-                    </select>
-                    {compatible.length === 0 && (
-                      <p className="text-[10px] text-red-500 font-semibold">No available bins in inventory of this category.</p>
-                    )}
-                  </div>
-                );
-              })}
+              {/* Build a per-type counter so we can label each slot (1 of N) */}
+              {(() => {
+                const typeCount: Record<string, number> = {};
+                const typeIndex: Record<number, number> = {};
+                (selectedItemForBin ? [selectedItemForBin] : (job?.orderItems || [])).forEach(item => {
+                  const key = `${item.bin_type_name}__${item.bin_size}`;
+                  typeCount[key] = (typeCount[key] || 0) + 1;
+                  typeIndex[item.id] = typeCount[key];
+                });
+
+                return (selectedItemForBin ? [selectedItemForBin] : (job?.orderItems || [])).map(item => {
+                  const compatible = getCompatibleBins(item);
+                  const key = `${item.bin_type_name}__${item.bin_size}`;
+                  const slotIndex = typeIndex[item.id];
+                  const totalOfType = Object.values(typeIndex).filter((_, i) => {
+                    const k = Object.keys(typeIndex)[i];
+                    return (selectedItemForBin ? [selectedItemForBin] : (job?.orderItems || []))
+                      .find(x => x.id === parseInt(k));
+                  });
+                  // Count total items with same type/size
+                  const sameTypeItems = (selectedItemForBin ? [selectedItemForBin] : (job?.orderItems || []))
+                    .filter(x => `${x.bin_type_name}__${x.bin_size}` === key);
+                  const slotLabel = sameTypeItems.length > 1
+                    ? `${item.bin_type_name} (${item.bin_size}) — Slot ${slotIndex} of ${sameTypeItems.length}`
+                    : `${item.bin_type_name} (${item.bin_size})`;
+
+                  return (
+                    <div key={item.id} className="p-3 bg-gray-50 border rounded-xl flex flex-col gap-2">
+                      <p className="text-xs font-bold text-gray-700">{slotLabel}</p>
+                      {binAssignments[item.id] && (
+                        <p className="text-[10px] text-green-600 font-semibold">✓ Assigned: {binAssignments[item.id]}</p>
+                      )}
+                      <select
+                        value={binAssignments[item.id] || ''}
+                        onChange={(e) => {
+                          setBinAssignments(prev => ({
+                            ...prev,
+                            [item.id]: e.target.value
+                          }));
+                        }}
+                        className="w-full px-3 py-2 bg-white rounded-lg border border-gray-300 text-sm outline-none cursor-pointer"
+                      >
+                        <option value="">-- Choose Bin --</option>
+                        {compatible.map(b => (
+                          <option key={b.id} value={b.bin_code}>
+                            {b.bin_code}
+                          </option>
+                        ))}
+                      </select>
+                      {compatible.length === 0 && !binAssignments[item.id] && (
+                        <p className="text-[10px] text-red-500 font-semibold">No available bins in inventory of this category.</p>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
             </div>
 
             <div className="flex gap-3 justify-end">
