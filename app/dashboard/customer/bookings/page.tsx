@@ -7,6 +7,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { api, API_BASE_URL } from '@/lib/api';
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
 import Link from 'next/link';
+import StripePayment from '@/components/StripePayment';
 
 const GOOGLE_LIBRARIES: any[] = ['places'];
 
@@ -92,6 +93,7 @@ function BookingsContent() {
   const [mapMarkerSelected, setMapMarkerSelected] = useState<Booking | null>(null);
   const [attachmentsOpen, setAttachmentsOpen] = useState<string[]>([]);
   const [paying, setPaying] = useState(false);
+  const [payingBooking, setPayingBooking] = useState<Booking | null>(null);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -152,12 +154,12 @@ function BookingsContent() {
     try {
       const res = await api.post('/payments/create-intent', { requestId: booking.id }) as any;
       if (!res.success) { showToast(res.message || 'Failed to initiate payment', 'error'); return; }
-      // Redirect to Stripe checkout URL if available
+      // If backend returns a hosted checkout URL, redirect to it
       if (res.data?.url) {
         window.location.href = res.data.url;
       } else if (res.data?.clientSecret) {
-        // Fallback: use existing StripePayment component approach
-        showToast('Redirecting to payment...', 'success');
+        // Use embedded Stripe payment modal
+        setPayingBooking(booking);
       }
     } catch {
       showToast('Payment error occurred', 'error');
@@ -413,6 +415,20 @@ function BookingsContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Stripe Payment Modal */}
+      {payingBooking && (
+        <StripePayment
+          requestId={payingBooking.id}
+          amount={Math.round(parseFloat(payingBooking.total_price || payingBooking.estimated_price || '0') * 100)}
+          onSuccess={() => {
+            setPayingBooking(null);
+            showToast('Payment successful!', 'success');
+            fetchBookings();
+          }}
+          onCancel={() => setPayingBooking(null)}
+        />
       )}
     </div>
   );
