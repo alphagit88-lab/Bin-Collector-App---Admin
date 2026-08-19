@@ -92,8 +92,8 @@ function BookingsContent() {
   const [cancelling, setCancelling] = useState(false);
   const [mapMarkerSelected, setMapMarkerSelected] = useState<Booking | null>(null);
   const [attachmentsOpen, setAttachmentsOpen] = useState<string[]>([]);
-  const [paying, setPaying] = useState(false);
   const [payingBooking, setPayingBooking] = useState<Booking | null>(null);
+
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -150,23 +150,10 @@ function BookingsContent() {
 
   const handlePayNow = async (booking: Booking) => {
     if (!booking || booking.payment_method !== 'online') return;
-    setPaying(true);
-    try {
-      const res = await api.post('/payments/create-intent', { requestId: booking.id }) as any;
-      if (!res.success) { showToast(res.message || 'Failed to initiate payment', 'error'); return; }
-      // If backend returns a hosted checkout URL, redirect to it
-      if (res.data?.url) {
-        window.location.href = res.data.url;
-      } else if (res.data?.clientSecret) {
-        // Use embedded Stripe payment modal
-        setPayingBooking(booking);
-      }
-    } catch {
-      showToast('Payment error occurred', 'error');
-    } finally {
-      setPaying(false);
-    }
+    // StripePayment modal handles create-intent internally — just open it
+    setPayingBooking(booking);
   };
+
 
   const getAttachments = (b: Booking) => {
     const imgs: string[] = [];
@@ -322,10 +309,10 @@ function BookingsContent() {
                         Track Order
                       </Link>
                       {b.status === 'awaiting_payment' && b.payment_method === 'online' && (
-                        <button onClick={() => handlePayNow(b)} disabled={paying}
+                        <button onClick={() => handlePayNow(b)}
                           className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-full text-white transition-colors"
                           style={{ background: 'linear-gradient(135deg, #29B554 0%, #6EAD16 100%)' }}>
-                          {paying ? 'Processing...' : '💳 Pay Now'}
+                          💳 Pay Now
                         </button>
                       )}
                       {b.status !== 'completed' && b.status !== 'cancelled' && (
@@ -396,10 +383,10 @@ function BookingsContent() {
             </div>
             <div className="p-6 border-t flex gap-3">
               {selectedBooking.status === 'awaiting_payment' && selectedBooking.payment_method === 'online' && (
-                <button onClick={() => handlePayNow(selectedBooking)} disabled={paying}
+                <button onClick={() => handlePayNow(selectedBooking)}
                   className="flex-1 py-3 text-white font-semibold rounded-xl transition-all"
                   style={{ background: 'linear-gradient(135deg, #29B554 0%, #6EAD16 100%)' }}>
-                  {paying ? 'Processing...' : '💳 Pay Now'}
+                  💳 Pay Now
                 </button>
               )}
               <Link href={`/dashboard/customer/tracking?id=${selectedBooking.id}`}
