@@ -963,7 +963,7 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
                         } else if (job.service_category !== 'service' && totalCount > 0) {
                           const items = job.orderItems || [];
                           if (step.key === 'on_delivery') {
-                            const reached = items.filter(i => ['loaded', 'cash_collected', 'delivered', 'ready_to_pickup', 'picked_up', 'completed'].includes(i.status || '')).length;
+                            const reached = items.filter(i => ['loaded', 'delivered', 'ready_to_pickup', 'picked_up', 'completed'].includes(i.status || '')).length;
                             isCompleted = reached === totalCount;
                             isPartiallyCompleted = reached > 0 && reached < totalCount;
                             if (reached > 0) hintText = `(${reached}/${totalCount} loaded)`;

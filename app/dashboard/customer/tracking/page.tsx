@@ -55,7 +55,12 @@ const STATUS_STEPS = [
 ];
 
 const getStatusOrder = (status: string) => {
-  const idx = STATUS_STEPS.findIndex(s => s.key === status.toLowerCase());
+  const normalized = status.toLowerCase();
+  let stepKey = normalized;
+  if (normalized === 'loaded') stepKey = 'on_delivery';
+  if (normalized === 'cash_collected') stepKey = 'delivered';
+  
+  const idx = STATUS_STEPS.findIndex(s => s.key === stepKey);
   return idx === -1 ? 0 : idx;
 };
 
@@ -71,7 +76,7 @@ const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
     case 'completed': return '#059669';
     case 'cancelled': return '#ef4444';
-    case 'on_delivery': case 'delivered': return '#8b5cf6';
+    case 'on_delivery': case 'loaded': case 'delivered': case 'cash_collected': return '#8b5cf6';
     case 'confirmed': return '#10B981';
     case 'awaiting_payment': return '#3b82f6';
     case 'pending': return '#f59e0b';
@@ -100,6 +105,7 @@ function TrackingContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [paying, setPaying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [markingReady, setMarkingReady] = useState<number | null>(null);
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -157,6 +163,22 @@ function TrackingContent() {
       if (res.data?.url) window.location.href = res.data.url;
     } catch { showToast('Payment error', 'error'); }
     finally { setPaying(false); }
+  };
+
+  const handleSingleBinMarkReady = async (itemId: number) => {
+    if (!selectedRequest) return;
+    if (!confirm('Mark this bin as ready for pickup?')) return;
+    setMarkingReady(itemId);
+    try {
+      const res = await api.put(`/bookings/${selectedRequest.id}/order-items/${itemId}/status`, { status: 'ready_to_pickup' }) as any;
+      if (res.success) {
+        showToast('Bin marked as ready for pickup', 'success');
+        fetchRequests();
+      } else {
+        showToast(res.message || 'Failed to update', 'error');
+      }
+    } catch { showToast('Error updating bin status', 'error'); }
+    finally { setMarkingReady(null); }
   };
 
   const getAttachments = (r: ServiceRequest) => {
@@ -265,35 +287,64 @@ function TrackingContent() {
                   {/* Status Timeline */}
                   <div className="mb-6">
                     <h4 className="font-semibold text-gray-900 mb-4">Order Progress</h4>
-                    <div className="relative">
+                    <div className="space-y-4 relative before:absolute before:left-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
                       {steps.map((step, i) => {
                         const stepIdx = getStatusOrder(step.key);
-                        const isDone = stepIdx < currentStepIdx;
+                        let isDone = false;
+                        let isPartiallyCompleted = false;
                         const isCurrent = stepIdx === currentStepIdx;
                         const isUpcoming = stepIdx > currentStepIdx;
+                        
+                        let hintText = '';
+                        if (selectedRequest.service_category !== 'service' && selectedRequest.items && selectedRequest.items.length > 0) {
+                          const totalItemsCount = selectedRequest.items.length;
+                          if (step.key === 'on_delivery') {
+                            const cumulativeStatuses = ['loaded', 'delivered', 'ready_to_pickup', 'picked_up', 'completed'];
+                            const reachedCount = selectedRequest.items.filter(item => cumulativeStatuses.includes(item.status || '')).length;
+                            isDone = reachedCount === totalItemsCount;
+                            isPartiallyCompleted = reachedCount > 0 && reachedCount < totalItemsCount;
+                            if (reachedCount > 0) hintText = `(${reachedCount}/${totalItemsCount} loaded)`;
+                          } else if (step.key === 'delivered') {
+                            const cumulativeStatuses = ['delivered', 'ready_to_pickup', 'picked_up', 'completed'];
+                            const reachedCount = selectedRequest.items.filter(item => cumulativeStatuses.includes(item.status || '')).length;
+                            isDone = reachedCount === totalItemsCount;
+                            isPartiallyCompleted = reachedCount > 0 && reachedCount < totalItemsCount;
+                            if (reachedCount > 0) hintText = `(${reachedCount}/${totalItemsCount} delivered)`;
+                          } else if (step.key === 'ready_to_pickup') {
+                            const cumulativeStatuses = ['ready_to_pickup', 'picked_up', 'completed'];
+                            const reachedCount = selectedRequest.items.filter(item => cumulativeStatuses.includes(item.status || '')).length;
+                            isDone = reachedCount === totalItemsCount;
+                            isPartiallyCompleted = reachedCount > 0 && reachedCount < totalItemsCount;
+                            if (reachedCount > 0) hintText = `(${reachedCount}/${totalItemsCount} ready)`;
+                          } else if (step.key === 'pickup') {
+                            const cumulativeStatuses = ['picked_up', 'completed'];
+                            const reachedCount = selectedRequest.items.filter(item => cumulativeStatuses.includes(item.status || '')).length;
+                            isDone = reachedCount === totalItemsCount;
+                            isPartiallyCompleted = reachedCount > 0 && reachedCount < totalItemsCount;
+                            if (reachedCount > 0) hintText = `(${reachedCount}/${totalItemsCount} picked up)`;
+                          } else {
+                            isDone = stepIdx <= currentStepIdx && !isCurrent;
+                          }
+                        } else {
+                          isDone = stepIdx <= currentStepIdx && !isCurrent;
+                        }
+
                         return (
-                          <div key={step.key} className="flex items-start gap-4 mb-3">
-                            {/* Icon */}
-                            <div className="relative flex flex-col items-center">
-                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${
-                                isDone ? 'bg-green-500 border-green-500 text-white' :
-                                isCurrent ? 'border-green-500 bg-green-50 text-green-600' :
-                                'bg-gray-100 border-gray-200 text-gray-400'
-                              }`}>
-                                {isDone ? (
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                ) : step.icon}
-                              </div>
-                              {i < steps.length - 1 && (
-                                <div className={`w-0.5 h-6 mt-1 ${isDone ? 'bg-green-500' : 'bg-gray-200'}`}></div>
-                              )}
+                          <div key={step.key} className="flex gap-4 items-start relative z-10">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border shadow-sm ${
+                              isDone ? 'bg-emerald-500 border-emerald-600 text-white' :
+                              isPartiallyCompleted ? 'bg-purple-500 border-purple-600 text-white animate-pulse' :
+                              isCurrent ? 'border-emerald-500 bg-emerald-50 text-emerald-600' :
+                              'bg-white border-gray-300 text-gray-400'
+                            }`}>
+                              {isDone ? '✓' : step.icon}
                             </div>
-                            {/* Label */}
-                            <div className={`pt-1.5 ${isCurrent ? 'text-green-700' : isUpcoming ? 'text-gray-400' : 'text-gray-600'}`}>
-                              <p className={`text-sm ${isCurrent ? 'font-bold' : 'font-medium'}`}>{step.label}</p>
-                              {isCurrent && <p className="text-xs text-green-500 mt-0.5">● Current Status</p>}
+                            <div>
+                              <p className={`text-sm font-bold ${isCurrent ? 'text-emerald-600' : isDone ? 'text-gray-800' : 'text-gray-400'}`}>
+                                {step.label}
+                              </p>
+                              {hintText && <p className="text-xs text-emerald-600 font-semibold">{hintText}</p>}
+                              {isCurrent && <p className="text-xs text-emerald-500 mt-0.5">● Current Status</p>}
                             </div>
                           </div>
                         );
@@ -322,6 +373,42 @@ function TrackingContent() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Bins Status */}
+                  {selectedRequest.service_category !== 'service' && selectedRequest.items && selectedRequest.items.length > 0 && (
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-semibold text-gray-900 mb-3">Bins Status</h4>
+                      <div className="space-y-3">
+                        {selectedRequest.items.map((item, idx) => {
+                          const itemColor = getStatusColor(item.status || 'pending');
+                          return (
+                            <div key={item.id || idx} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                              <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-2">
+                                <div>
+                                  <p className="font-medium text-gray-900">• {item.bin_type_name} {item.bin_size ? `(${item.bin_size})` : ''}</p>
+                                  {item.bin_code && <p className="text-sm text-gray-500 mt-1">Assigned Bin: <span className="font-semibold text-gray-700">{item.bin_code}</span></p>}
+                                </div>
+                                <span className="px-3 py-1 rounded-full text-xs font-bold shrink-0" style={{ color: itemColor, backgroundColor: itemColor + '20' }}>
+                                  {formatStatus(item.status || 'pending')}
+                                </span>
+                              </div>
+                              {/* Per-bin Mark Ready for Pickup button */}
+                              {item.status === 'delivered' && (
+                                <button
+                                  onClick={() => handleSingleBinMarkReady(item.id)}
+                                  disabled={markingReady === item.id}
+                                  className="mt-3 w-full py-2 text-sm font-semibold rounded-lg text-white transition-all"
+                                  style={{ background: 'linear-gradient(135deg, #29B554 0%, #6EAD16 100%)', opacity: markingReady === item.id ? 0.7 : 1 }}
+                                >
+                                  {markingReady === item.id ? 'Updating...' : '🔄 Mark Ready for Pickup'}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Attachments */}
                   {getAttachments(selectedRequest).length > 0 && (
