@@ -29,9 +29,13 @@ function LoginContent() {
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
-      router.replace('/dashboard');
+      if (returnUrl) {
+        router.replace(returnUrl);
+      } else {
+        router.replace('/dashboard');
+      }
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, user, router, returnUrl]);
 
   // Show loading state while checking auth
   if (authLoading) {
