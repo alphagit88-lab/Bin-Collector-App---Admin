@@ -136,9 +136,16 @@ export default function CustomerOrderPage() {
         fetchServices();
       } else {
         fetchBins();
+        
+        // Also fetch sizes for any pre-filled bins if not already loaded
+        selectedBins.forEach(bin => {
+          if (bin.typeId && !binSizesMap[bin.typeId]) {
+            fetchBinSizes(Number(bin.typeId), latitude, longitude);
+          }
+        });
       }
     }
-  }, [step, latitude, longitude, category]);
+  }, [step, latitude, longitude, category, selectedBins, binSizesMap]);
 
   const fetchBins = async () => {
     try {
@@ -151,10 +158,10 @@ export default function CustomerOrderPage() {
     }
   };
 
-  const fetchBinSizes = async (typeId: number) => {
+  const fetchBinSizes = async (typeId: number, lat = latitude, lon = longitude) => {
     if (binSizesMap[typeId]) return; // Already fetched
     try {
-      const res = await api.get<{ binSizes: any[] }>(`/bins/available-sizes?lat=${latitude}&lon=${longitude}&binTypeId=${typeId}`);
+      const res = await api.get<{ binSizes: any[] }>(`/bins/available-sizes?lat=${lat}&lon=${lon}&binTypeId=${typeId}`);
       if (res.success && res.data) {
         setBinSizesMap(prev => ({ ...prev, [typeId]: res.data?.binSizes || [] }));
       }
