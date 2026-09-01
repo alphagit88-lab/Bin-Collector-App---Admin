@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import Link from 'next/link';
 
-export default function LoginPage() {
+function LoginContent() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -15,6 +15,8 @@ export default function LoginPage() {
   const { user, loading: authLoading, login, rememberedPhone } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl');
 
   // Pre-fill phone number and checkbox if remembered
   useEffect(() => {
@@ -57,7 +59,11 @@ export default function LoginPage() {
 
     if (result.success) {
       showToast('Login successful!', 'success');
-      router.push('/dashboard');
+      if (returnUrl) {
+        router.push(returnUrl);
+      } else {
+        router.push('/dashboard');
+      }
     } else {
       setError(result.message || 'Login failed. Please check your credentials.');
     }
@@ -135,12 +141,26 @@ export default function LoginPage() {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Don't have an account?{' '}
-            <Link href="/signup" className="text-[#10B981] font-medium hover:underline">
+            <Link href={returnUrl ? `/signup?returnUrl=${encodeURIComponent(returnUrl)}` : "/signup"} className="text-[#10B981] font-medium hover:underline">
               Sign up
             </Link>
           </p>
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <main className="py-20 min-h-screen flex items-center justify-center px-6 bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </main>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

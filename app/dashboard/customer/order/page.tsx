@@ -88,6 +88,45 @@ export default function CustomerOrderPage() {
         if (res.success && res.data) setProjects(res.data.projects || []);
       });
     }
+    
+    // Auto-fill from URL params (e.g. from public hero form)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const queryLat = params.get('lat');
+      const queryLng = params.get('lng');
+      const queryLocation = params.get('location');
+      const queryCategory = params.get('category');
+      const queryTypeId = params.get('typeId');
+      const querySizeId = params.get('sizeId');
+      const queryStartDate = params.get('startDate');
+      const queryEndDate = params.get('endDate');
+      const autoStep = params.get('autoStep');
+
+      if (queryLat && queryLng && queryLocation) {
+        setLatitude(parseFloat(queryLat));
+        setLongitude(parseFloat(queryLng));
+        setLocation(queryLocation);
+        setMapCenter({ lat: parseFloat(queryLat), lng: parseFloat(queryLng) });
+        
+        if (queryCategory === 'residential' || queryCategory === 'commercial' || queryCategory === 'service') {
+          setCategory(queryCategory);
+        }
+        if (queryStartDate) setStartDate(queryStartDate);
+        if (queryEndDate) setEndDate(queryEndDate);
+        
+        if (queryTypeId) {
+          setSelectedBins([{ 
+            typeId: queryTypeId, 
+            sizeId: querySizeId || '', 
+            quantity: '1' 
+          }]);
+        }
+        
+        if (autoStep) {
+          setStep(parseInt(autoStep));
+        }
+      }
+    }
   }, [user]);
 
   // When location/category changes, fetch available bins or services

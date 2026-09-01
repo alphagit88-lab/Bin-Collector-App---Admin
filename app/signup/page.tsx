@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import Link from 'next/link';
 
-export default function SignupPage() {
+function SignupContent() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -18,6 +18,8 @@ export default function SignupPage() {
   const { user, loading: authLoading, signup } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl');
 
   // Redirect if already logged in
   useEffect(() => {
@@ -65,7 +67,11 @@ export default function SignupPage() {
 
     if (result.success) {
       showToast('Account created successfully!', 'success');
-      router.push('/dashboard');
+      if (returnUrl) {
+        router.push(returnUrl);
+      } else {
+        router.push('/dashboard');
+      }
     } else {
       setError(result.message || 'Signup failed. Please check your information.');
     }
@@ -242,12 +248,26 @@ export default function SignupPage() {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Already have an account?{' '}
-            <Link href="/login" className="text-[#10B981] font-medium hover:underline">
+            <Link href={returnUrl ? `/login?returnUrl=${encodeURIComponent(returnUrl)}` : "/login"} className="text-[#10B981] font-medium hover:underline">
               Sign in
             </Link>
           </p>
         </div>
       </div>
     </main>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <main className="py-20 min-h-screen flex items-center justify-center px-6 bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </main>
+    }>
+      <SignupContent />
+    </Suspense>
   );
 }
