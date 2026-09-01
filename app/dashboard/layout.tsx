@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import DashboardSidebar from '@/components/dashboard/DashboardSidebar';
 
 export default function DashboardLayout({
@@ -12,18 +12,18 @@ export default function DashboardLayout({
 }) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (!authLoading && !user) {
-      let returnUrl = pathname;
-      const search = searchParams.toString();
-      if (search) returnUrl += `?${search}`;
-      router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+      if (typeof window !== 'undefined') {
+        const returnUrl = window.location.pathname + window.location.search;
+        router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+      } else {
+        router.push('/login');
+      }
       return;
     }
-  }, [authLoading, user, router, pathname, searchParams]);
+  }, [authLoading, user, router]);
 
   if (authLoading) {
     return (
