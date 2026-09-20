@@ -91,8 +91,21 @@ function BookingsContent() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [mapMarkerSelected, setMapMarkerSelected] = useState<Booking | null>(null);
-  const [attachmentsOpen, setAttachmentsOpen] = useState<string[]>([]);
   const [payingBooking, setPayingBooking] = useState<Booking | null>(null);
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editBooking, setEditBooking] = useState<Booking | null>(null);
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editContactPhone, setEditContactPhone] = useState('');
+  const [editContactEmail, setEditContactEmail] = useState('');
+  const [editInstructions, setEditInstructions] = useState('');
+  const [editExistingAttachments, setEditExistingAttachments] = useState<string[]>([]);
+  const [editNewAttachments, setEditNewAttachments] = useState<File[]>([]);
+  const [editPriceDetails, setEditPriceDetails] = useState<any>(null);
+  const [isCalculatingPrice, setIsCalculatingPrice] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
 
 
   const { isLoaded } = useJsApiLoader({
@@ -124,6 +137,107 @@ function BookingsContent() {
       b.location?.toLowerCase().includes(q) ||
       b.service_names?.toLowerCase().includes(q);
   });
+
+  const handleEditClick = (booking: Booking) => {
+    setEditBooking(booking);
+    setEditStartDate(booking.start_date ? new Date(booking.start_date).toISOString().split('T')[0] : '');
+    setEditEndDate(booking.end_date ? new Date(booking.end_date).toISOString().split('T')[0] : '');
+    setEditContactPhone(booking.contact_number || '');
+    setEditContactEmail(booking.contact_email || '');
+    setEditInstructions(booking.instructions || '');
+    setEditExistingAttachments(getAttachments(booking));
+    setEditNewAttachments([]);
+    setEditPriceDetails(null);
+    setEditModalOpen(true);
+    setDetailsOpen(false);
+  };
+
+  useEffect(() => {
+    const calculateNewPrice = async () => {
+      if (!editBooking || !editStartDate || !editEndDate || editBooking.service_category === 'service' || editBooking.service_category === 'commercial') return;
+      if (
+        editStartDate === (editBooking.start_date ? new Date(editBooking.start_date).toISOString().split('T')[0] : '') &&
+        editEndDate === (editBooking.end_date ? new Date(editBooking.end_date).toISOString().split('T')[0] : '')
+      ) {
+        setEditPriceDetails(null);
+        return;
+      }
+      setIsCalculatingPrice(true);
+      try {
+        const payload = {
+          booking_id: editBooking.id,
+          service_category: editBooking.service_category,
+          start_date: editStartDate,
+          end_date: editEndDate,
+          lat: editBooking.latitude,
+          lng: editBooking.longitude,
+          location: editBooking.location,
+          bins: editBooking.items?.map(b => ({
+            bin_type_id: b.bin_type_id,
+            bin_size_id: b.bin_size_id,
+            quantity: 1
+          })) || [{
+            bin_type_id: editBooking.bin_type_name ? 1 : null,
+            bin_size_id: null,
+            quantity: 1
+          }]
+        };
+        const res = await api.post<any>('/bookings/calculate-price', payload);
+        if (res.success && res.data) {
+          setEditPriceDetails(res.data);
+        } else {
+          setEditPriceDetails(null);
+        }
+      } catch (e) {
+        setEditPriceDetails(null);
+      } finally {
+        setIsCalculatingPrice(false);
+      }
+    };
+    const timer = setTimeout(calculateNewPrice, 500);
+    return () => clearTimeout(timer);
+  }, [editStartDate, editEndDate, editBooking]);
+
+  const handleSaveEdit = async () => {
+    if (!editBooking) return;
+    setIsSavingEdit(true);
+    try {
+      const formData = new FormData();
+      if (editStartDate) formData.append('start_date', editStartDate);
+      if (editEndDate) formData.append('end_date', editEndDate);
+      formData.append('contact_number', editContactPhone);
+      formData.append('contact_email', editContactEmail);
+      formData.append('instructions', editInstructions);
+      formData.append('existing_attachments', JSON.stringify(editExistingAttachments));
+
+      if (editPriceDetails) {
+        if (editPriceDetails.base_price !== undefined) formData.append('base_price', editPriceDetails.base_price);
+        if (editPriceDetails.additional_duration_charge !== undefined) formData.append('additional_duration_charge', editPriceDetails.additional_duration_charge);
+        if (editPriceDetails.duration_days !== undefined) formData.append('duration_days', editPriceDetails.duration_days);
+        if (editPriceDetails.exceeded_days !== undefined) formData.append('exceeded_days', editPriceDetails.exceeded_days);
+        if (editPriceDetails.gst_rate !== undefined) formData.append('gst_rate', editPriceDetails.gst_rate);
+        if (editPriceDetails.gst_amount !== undefined) formData.append('gst_amount', editPriceDetails.gst_amount);
+        if (editPriceDetails.total !== undefined) formData.append('estimated_price', editPriceDetails.total);
+      }
+
+      editNewAttachments.forEach(file => {
+        formData.append('attachments', file);
+      });
+
+      const res = await api.put(`/bookings/${editBooking.id}`, formData);
+      if (res.success) {
+        showToast('Booking updated successfully', 'success');
+        setEditModalOpen(false);
+        fetchBookings();
+      } else {
+        showToast(res.message || 'Failed to update booking', 'error');
+      }
+    } catch (e) {
+      showToast('Failed to update booking', 'error');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   const handleCancel = async (booking: Booking) => {
     if (booking.status !== 'pending') {
@@ -315,6 +429,12 @@ function BookingsContent() {
                           💳 Pay Now
                         </button>
                       )}
+                      {b.status === 'pending' && (
+                        <button onClick={() => handleEditClick(b)}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 text-blue-600 text-xs font-semibold rounded-full hover:bg-blue-100 transition-colors">
+                          Edit
+                        </button>
+                      )}
                       {b.status !== 'completed' && b.status !== 'cancelled' && (
                         <button onClick={() => handleCancel(b)} disabled={cancelling}
                           className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-600 text-xs font-semibold rounded-full hover:bg-red-100 transition-colors">
@@ -393,12 +513,145 @@ function BookingsContent() {
                 className="flex-1 py-3 border border-green-500 text-green-600 font-semibold rounded-xl text-center hover:bg-green-50 transition-colors">
                 Track Order
               </Link>
+              {selectedBooking.status === 'pending' && (
+                <button onClick={() => handleEditClick(selectedBooking)}
+                  className="py-3 px-5 bg-blue-50 text-blue-600 font-semibold rounded-xl hover:bg-blue-100 transition-colors">
+                  Edit
+                </button>
+              )}
               {selectedBooking.status !== 'completed' && selectedBooking.status !== 'cancelled' && (
                 <button onClick={() => handleCancel(selectedBooking)} disabled={cancelling}
                   className="py-3 px-5 bg-red-50 text-red-600 font-semibold rounded-xl hover:bg-red-100 transition-colors">
                   Cancel
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editModalOpen && editBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setEditModalOpen(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-xl font-bold text-gray-900">Edit Booking</h3>
+              <button onClick={() => setEditModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-6 space-y-4">
+
+              {editBooking.service_category !== 'commercial' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} min={new Date().toISOString().split('T')[0]}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                    <input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} min={editStartDate || new Date().toISOString().split('T')[0]}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                </div>
+              )}
+
+              {isCalculatingPrice && (
+                <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 p-3 rounded-xl">
+                  <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                  Calculating new price...
+                </div>
+              )}
+
+              {editPriceDetails && !isCalculatingPrice && editBooking.service_category !== 'commercial' && (
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-2 text-sm">
+                  <h4 className="font-bold text-gray-900 border-b pb-2 mb-2">New Price Summary</h4>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Duration</span>
+                    <span className="font-medium text-gray-900">{editPriceDetails.duration_days} day(s)</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Base Price</span>
+                    <span className="font-medium text-gray-900">{formatPrice(editPriceDetails.base_price)}</span>
+                  </div>
+                  {(editPriceDetails.additional_duration_charge ?? 0) > 0 && (
+                    <div className="flex justify-between text-red-500">
+                      <span>Extra Days - {editPriceDetails.exceeded_days} day(s)</span>
+                      <span className="font-medium">+{formatPrice(editPriceDetails.additional_duration_charge)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-gray-600">
+                    <span>Subtotal</span>
+                    <span className="font-medium text-gray-900">{formatPrice(editPriceDetails.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>GST ({editPriceDetails.gst_rate}%)</span>
+                    <span className="font-medium text-gray-900">{formatPrice(editPriceDetails.gst_amount)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-gray-900 pt-2 border-t mt-1">
+                    <span>Total Price</span>
+                    <span className="text-green-600">{formatPrice(editPriceDetails.total)}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+                  <input type="tel" value={editContactPhone} onChange={e => setEditContactPhone(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+                  <input type="email" value={editContactEmail} onChange={e => setEditContactEmail(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Instructions</label>
+                <textarea value={editInstructions} onChange={e => setEditInstructions(e.target.value)} rows={3}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Attachments</label>
+                <div className="flex gap-2 flex-wrap mb-3">
+                  {editExistingAttachments.map((img, i) => (
+                    <div key={'old-' + i} className="relative group">
+                      <img src={`${API_BASE_URL}${img}`} alt="" className="h-16 w-16 object-cover rounded-xl border border-gray-200" />
+                      <button onClick={() => setEditExistingAttachments(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                  {editNewAttachments.map((file, i) => (
+                    <div key={'new-' + i} className="relative group">
+                      <img src={URL.createObjectURL(file)} alt="" className="h-16 w-16 object-cover rounded-xl border border-gray-200" />
+                      <button onClick={() => setEditNewAttachments(prev => prev.filter((_, idx) => idx !== i))} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <input type="file" multiple accept="image/*" onChange={e => {
+                  if (e.target.files) {
+                    setEditNewAttachments(prev => [...prev, ...Array.from(e.target.files as FileList)]);
+                  }
+                }}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+              </div>
+            </div>
+            <div className="p-6 border-t flex gap-3">
+              <button onClick={() => setEditModalOpen(false)} className="flex-1 py-3 px-5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleSaveEdit} disabled={isSavingEdit || isCalculatingPrice}
+                className="flex-1 py-3 px-5 text-white font-semibold rounded-xl transition-all disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, #29B554 0%, #6EAD16 100%)' }}>
+                {isSavingEdit ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>
