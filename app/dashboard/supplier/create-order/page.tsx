@@ -40,6 +40,12 @@ interface ServiceCategory {
   name: string;
 }
 
+interface Customer {
+  id: number;
+  name: string;
+  phone: string;
+}
+
 const GOOGLE_LIBRARIES: any[] = ["places"];
 
 export default function CreateOrderPage() {
@@ -49,6 +55,8 @@ export default function CreateOrderPage() {
   const [fetchingData, setFetchingData] = useState(true);
 
   // Form State
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [serviceCategory, setServiceCategory] = useState('residential');
@@ -79,6 +87,21 @@ export default function CreateOrderPage() {
         };
         reader.readAsDataURL(file);
       });
+    }
+  };
+
+  const handleCustomerSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    setSelectedCustomerId(id);
+    if (id === '') {
+      setCustomerName('');
+      setCustomerPhone('');
+    } else {
+      const selected = customers.find(c => c.id.toString() === id);
+      if (selected) {
+        setCustomerName(selected.name);
+        setCustomerPhone(selected.phone);
+      }
     }
   };
 
@@ -117,10 +140,11 @@ export default function CreateOrderPage() {
 
   const fetchInitialData = async () => {
     try {
-      const [categoriesRes, settingsRes, serviceAreasRes] = await Promise.all([
+      const [categoriesRes, settingsRes, serviceAreasRes, customersRes] = await Promise.all([
         api.get<{ categories: ServiceCategory[] }>('/service-categories'),
         api.get<{ settings: any[] }>('/settings'),
-        api.get<{ serviceAreas: any[] }>('/supplier/service-areas')
+        api.get<{ serviceAreas: any[] }>('/supplier/service-areas'),
+        api.get<Customer[]>('/supplier/customers')
       ]);
 
       if (categoriesRes.success && categoriesRes.data) {
@@ -135,6 +159,9 @@ export default function CreateOrderPage() {
       }
       if (serviceAreasRes.success && serviceAreasRes.data) {
         setSupplierServiceAreas(serviceAreasRes.data.serviceAreas);
+      }
+      if (customersRes.success && customersRes.data) {
+        setCustomers(customersRes.data);
       }
     } catch (error) {
       showToast('Failed to load initial data', 'error');
@@ -501,16 +528,30 @@ export default function CreateOrderPage() {
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-green-600"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
               Customer Details
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select Customer</label>
+                <select
+                  value={selectedCustomerId}
+                  onChange={handleCustomerSelect}
+                  className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
+                >
+                  <option value="">New Customer</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
                 <input
                   type="text"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none ${selectedCustomerId ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                   placeholder="Enter customer name"
                   required
+                  readOnly={!!selectedCustomerId}
                 />
               </div>
               <div>
@@ -519,9 +560,10 @@ export default function CreateOrderPage() {
                   type="tel"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none ${selectedCustomerId ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                   placeholder="e.g. 0771234567"
                   required
+                  readOnly={!!selectedCustomerId}
                 />
               </div>
             </div>
