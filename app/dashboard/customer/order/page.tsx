@@ -512,7 +512,7 @@ export default function CustomerOrderPage() {
                   <option value="">Any Supplier (Lowest Price)</option>
                   {suppliers.map(s => (
                     <option key={s.id} value={s.id}>
-                      {s.name} {s.phone ? `(${s.phone})` : ''}
+                      {s.name}
                     </option>
                   ))}
                 </select>
