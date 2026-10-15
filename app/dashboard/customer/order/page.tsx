@@ -13,6 +13,14 @@ interface ServiceCategory {
   description: string;
 }
 
+interface RelatedSupplier {
+  id: number;
+  name: string;
+  phone: string;
+  email?: string;
+  supplier_type?: string;
+}
+
 const GOOGLE_LIBRARIES: any[] = ["places"];
 
 export default function CustomerOrderPage() {
@@ -45,6 +53,10 @@ export default function CustomerOrderPage() {
   const [contactEmail, setContactEmail] = useState(user?.email || '');
   const [instructions, setInstructions] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
+
+  // Supplier selection (available for all service types)
+  const [suppliers, setSuppliers] = useState<RelatedSupplier[]>([]);
+  const [selectedSupplier, setSelectedSupplier] = useState('');
 
   // Commercial Specific
   const [projects, setProjects] = useState<any[]>([]);
@@ -86,6 +98,9 @@ export default function CustomerOrderPage() {
     if (user?.role === 'customer') {
       api.get<{ projects: any[] }>('/projects/my').then(res => {
         if (res.success && res.data) setProjects(res.data.projects || []);
+      });
+      api.get<{ suppliers: RelatedSupplier[] }>('/bookings/my-suppliers').then(res => {
+        if (res.success && res.data) setSuppliers(res.data.suppliers || []);
       });
     }
     
@@ -129,7 +144,7 @@ export default function CustomerOrderPage() {
     }
   }, [user]);
 
-  // When location/category changes, fetch available bins or services
+  // When location/category/supplier changes, fetch available bins or services
   useEffect(() => {
     if (step === 2 && latitude && longitude) {
       if (category === 'service') {
@@ -145,11 +160,12 @@ export default function CustomerOrderPage() {
         });
       }
     }
-  }, [step, latitude, longitude, category, selectedBins, binSizesMap]);
+  }, [step, latitude, longitude, category, selectedBins, binSizesMap, selectedSupplier]);
 
   const fetchBins = async () => {
     try {
-      const res = await api.get<{ binTypes: any[] }>(`/bins/available-types?lat=${latitude}&lon=${longitude}`);
+      const supplierParam = selectedSupplier ? `&supplierId=${selectedSupplier}` : '';
+      const res = await api.get<{ binTypes: any[] }>(`/bins/available-types?lat=${latitude}&lon=${longitude}${supplierParam}`);
       if (res.success && res.data) {
         setAvailableBins(res.data.binTypes || []);
       }
@@ -161,7 +177,8 @@ export default function CustomerOrderPage() {
   const fetchBinSizes = async (typeId: number, lat = latitude, lon = longitude) => {
     if (binSizesMap[typeId]) return; // Already fetched
     try {
-      const res = await api.get<{ binSizes: any[] }>(`/bins/available-sizes?lat=${lat}&lon=${lon}&binTypeId=${typeId}`);
+      const supplierParam = selectedSupplier ? `&supplierId=${selectedSupplier}` : '';
+      const res = await api.get<{ binSizes: any[] }>(`/bins/available-sizes?lat=${lat}&lon=${lon}&binTypeId=${typeId}${supplierParam}`);
       if (res.success && res.data) {
         setBinSizesMap(prev => ({ ...prev, [typeId]: res.data?.binSizes || [] }));
       }
@@ -237,6 +254,7 @@ export default function CustomerOrderPage() {
         end_date: endDate || null,
         lat: latitude,
         lng: longitude,
+        supplier_id: selectedSupplier ? parseInt(selectedSupplier) : undefined,
         bins: selectedBins.filter(b => b.typeId && b.sizeId).map(b => ({
           bin_type_id: b.typeId,
           bin_size_id: b.sizeId,
@@ -273,7 +291,7 @@ export default function CustomerOrderPage() {
     if (step === 3) {
       calculateEstimate();
     }
-  }, [step, startDate, endDate, selectedBins, selectedServices, latitude, longitude, category]);
+  }, [step, startDate, endDate, selectedBins, selectedServices, latitude, longitude, category, selectedSupplier]);
 
   const handleSubmit = async () => {
     if (!latitude || !longitude) {
@@ -304,6 +322,9 @@ export default function CustomerOrderPage() {
       formData.append('contact_email', contactEmail);
       formData.append('instructions', instructions);
       formData.append('payment_method', paymentMethod);
+      if (selectedSupplier) {
+        formData.append('supplier_id', selectedSupplier);
+      }
 
       if (category === 'commercial') {
         if (selectedProject) formData.append('project_id', selectedProject);
@@ -363,8 +384,9 @@ export default function CustomerOrderPage() {
             quantity: b.quantity || '1'
           }));
           formData.append('bins', JSON.stringify(mappedBins));
-          if (assignedSupplierId) {
-            formData.append('supplier_id', assignedSupplierId);
+          const finalSupplierId = selectedSupplier || assignedSupplierId;
+          if (finalSupplierId) {
+            formData.append('supplier_id', finalSupplierId);
           }
           attachments.forEach((file) => {
             formData.append('attachments', file);
@@ -474,6 +496,26 @@ export default function CustomerOrderPage() {
                     <span className={`font-semibold ${category === cat.id ? 'text-green-700' : 'text-gray-700'}`}>{cat.label}</span>
                   </button>
                 ))}
+              </div>
+
+              <div className="mb-8">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Select Supplier (Optional)</h2>
+                <select
+                  value={selectedSupplier}
+                  onChange={e => {
+                    setSelectedSupplier(e.target.value);
+                    setBinSizesMap({});
+                    setSelectedBins([{ typeId: '', sizeId: '', quantity: '1' }]);
+                  }}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Any Supplier (Lowest Price)</option>
+                  {suppliers.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} {s.phone ? `(${s.phone})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {category === 'commercial' && (
