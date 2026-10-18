@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { api, API_BASE_URL } from '@/lib/api';
+import { compressImage } from '@/lib/imageCompression';
 
 interface OrderItem {
   id: number;
@@ -312,10 +313,10 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
     }
   };
 
-  const handlePhotoSelect = (itemId: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = async (itemId: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const file = files[0];
+      const file = await compressImage(files[0]);
       setItemPhotos(prev => ({ ...prev, [itemId]: file }));
       
       const reader = new FileReader();
@@ -323,6 +324,7 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
         setItemPhotoPreviews(prev => ({ ...prev, [itemId]: reader.result as string }));
       };
       reader.readAsDataURL(file);
+      e.target.value = '';
     }
   };
 

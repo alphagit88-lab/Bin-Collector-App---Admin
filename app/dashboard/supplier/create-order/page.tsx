@@ -5,6 +5,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { compressImages } from '@/lib/imageCompression';
 
 const mapContainerStyle = {
   width: '100%',
@@ -74,19 +75,20 @@ export default function CreateOrderPage() {
   const [attachmentPreviews, setAttachmentPreviews] = useState<string[]>([]);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      const fileList = Array.from(files);
-      setAttachments(prev => [...prev, ...fileList]);
+    if (files && files.length > 0) {
+      const compressed = await compressImages(files);
+      setAttachments(prev => [...prev, ...compressed]);
 
-      fileList.forEach(file => {
+      compressed.forEach(file => {
         const reader = new FileReader();
         reader.onloadend = () => {
           setAttachmentPreviews(prev => [...prev, reader.result as string]);
         };
         reader.readAsDataURL(file);
       });
+      e.target.value = '';
     }
   };
 

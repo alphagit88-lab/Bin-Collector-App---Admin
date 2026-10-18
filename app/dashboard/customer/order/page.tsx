@@ -6,6 +6,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { api, API_BASE_URL } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { GoogleMap, Marker, Autocomplete, useJsApiLoader } from '@react-google-maps/api';
+import { compressImages } from '@/lib/imageCompression';
 
 interface ServiceCategory {
   id: number;
@@ -729,10 +730,12 @@ export default function CustomerOrderPage() {
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 resize-none mb-4" />
 
                     <label className="block text-sm font-medium text-gray-700 mb-1">Attachments (Photos)</label>
-                    <input type="file" multiple accept="image/*" onChange={e => {
-                      if (e.target.files) {
-                        setAttachments(prev => [...prev, ...Array.from(e.target.files as FileList)]);
+                    <input type="file" multiple accept="image/*" onChange={async (e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        const compressed = await compressImages(e.target.files);
+                        setAttachments(prev => [...prev, ...compressed]);
                       }
+                      e.target.value = '';
                     }}
                       className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" />
                     {attachments.length > 0 && (

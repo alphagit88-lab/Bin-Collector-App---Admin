@@ -8,6 +8,7 @@ import { api, API_BASE_URL } from '@/lib/api';
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
 import Link from 'next/link';
 import StripePayment from '@/components/StripePayment';
+import { compressImages } from '@/lib/imageCompression';
 
 const GOOGLE_LIBRARIES: any[] = ['places'];
 
@@ -635,10 +636,12 @@ function BookingsContent() {
                     </div>
                   ))}
                 </div>
-                <input type="file" multiple accept="image/*" onChange={e => {
-                  if (e.target.files) {
-                    setEditNewAttachments(prev => [...prev, ...Array.from(e.target.files as FileList)]);
+                <input type="file" multiple accept="image/*" onChange={async (e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    const compressed = await compressImages(e.target.files);
+                    setEditNewAttachments(prev => [...prev, ...compressed]);
                   }
+                  e.target.value = '';
                 }}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
               </div>
