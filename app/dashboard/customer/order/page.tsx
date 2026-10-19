@@ -98,7 +98,27 @@ export default function CustomerOrderPage() {
 
     if (user?.role === 'customer') {
       api.get<{ projects: any[] }>('/projects/my').then(res => {
-        if (res.success && res.data) setProjects(res.data.projects || []);
+        if (res.success && res.data) {
+          const projs = res.data.projects || [];
+          setProjects(projs);
+          if (typeof window !== 'undefined') {
+            const pId = new URLSearchParams(window.location.search).get('projectId');
+            if (pId) {
+              setSelectedProject(pId);
+              const matched = projs.find(p => p.id.toString() === pId);
+              if (matched && matched.location) {
+                setLocation(matched.location);
+                const pLat = matched.latitude ? parseFloat(matched.latitude) : null;
+                const pLng = matched.longitude ? parseFloat(matched.longitude) : null;
+                if (pLat && pLng && !isNaN(pLat) && !isNaN(pLng)) {
+                  setLatitude(pLat);
+                  setLongitude(pLng);
+                  setMapCenter({ lat: pLat, lng: pLng });
+                }
+              }
+            }
+          }
+        }
       });
       api.get<{ suppliers: RelatedSupplier[] }>('/bookings/my-suppliers').then(res => {
         if (res.success && res.data) setSuppliers(res.data.suppliers || []);
@@ -118,29 +138,30 @@ export default function CustomerOrderPage() {
       const queryEndDate = params.get('endDate');
       const autoStep = params.get('autoStep');
 
+      if (queryCategory === 'residential' || queryCategory === 'commercial' || queryCategory === 'service') {
+        setCategory(queryCategory);
+      }
+
       if (queryLat && queryLng && queryLocation) {
         setLatitude(parseFloat(queryLat));
         setLongitude(parseFloat(queryLng));
         setLocation(queryLocation);
         setMapCenter({ lat: parseFloat(queryLat), lng: parseFloat(queryLng) });
-        
-        if (queryCategory === 'residential' || queryCategory === 'commercial' || queryCategory === 'service') {
-          setCategory(queryCategory);
-        }
-        if (queryStartDate) setStartDate(queryStartDate);
-        if (queryEndDate) setEndDate(queryEndDate);
-        
-        if (queryTypeId) {
-          setSelectedBins([{ 
-            typeId: queryTypeId, 
-            sizeId: querySizeId || '', 
-            quantity: '1' 
-          }]);
-        }
-        
-        if (autoStep) {
-          setStep(parseInt(autoStep));
-        }
+      }
+      
+      if (queryStartDate) setStartDate(queryStartDate);
+      if (queryEndDate) setEndDate(queryEndDate);
+      
+      if (queryTypeId) {
+        setSelectedBins([{ 
+          typeId: queryTypeId, 
+          sizeId: querySizeId || '', 
+          quantity: '1' 
+        }]);
+      }
+      
+      if (autoStep) {
+        setStep(parseInt(autoStep));
       }
     }
   }, [user]);
@@ -522,7 +543,25 @@ export default function CustomerOrderPage() {
               {category === 'commercial' && (
                 <div className="mb-8">
                   <h2 className="text-xl font-bold text-gray-900 mb-4">Assign to Project (Optional)</h2>
-                  <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+                  <select
+                    value={selectedProject}
+                    onChange={e => {
+                      const projId = e.target.value;
+                      setSelectedProject(projId);
+                      if (projId) {
+                        const proj = projects.find(p => p.id.toString() === projId);
+                        if (proj && proj.location) {
+                          setLocation(proj.location);
+                          const pLat = proj.latitude ? parseFloat(proj.latitude) : null;
+                          const pLng = proj.longitude ? parseFloat(proj.longitude) : null;
+                          if (pLat && pLng && !isNaN(pLat) && !isNaN(pLng)) {
+                            setLatitude(pLat);
+                            setLongitude(pLng);
+                            setMapCenter({ lat: pLat, lng: pLng });
+                          }
+                        }
+                      }
+                    }}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">
                     <option value="">No Project</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}

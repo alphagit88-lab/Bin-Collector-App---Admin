@@ -1,15 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import Link from 'next/link';
+import { GoogleMap, Marker, Autocomplete, useJsApiLoader } from '@react-google-maps/api';
+
+const GOOGLE_LIBRARIES: any[] = ["places"];
+
+const defaultCenter = {
+  lat: 43.6532,
+  lng: -79.3832
+};
 
 interface Project {
   id: number;
   name: string;
   description: string;
+  location?: string;
+  latitude?: number | string;
+  longitude?: number | string;
   status: string;
   created_at: string;
 }
@@ -48,7 +59,50 @@ export default function CustomerProjectsPage() {
   // Form states
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [newLocation, setNewLocation] = useState('');
+  const [newLatitude, setNewLatitude] = useState<number | null>(null);
+  const [newLongitude, setNewLongitude] = useState<number | null>(null);
+  const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [submitting, setSubmitting] = useState(false);
+  const autocompleteRef = useRef<any>(null);
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAP_API_KEY || '',
+    libraries: GOOGLE_LIBRARIES
+  });
+
+  const handlePlaceSelect = () => {
+    if (autocompleteRef.current) {
+      const place = autocompleteRef.current.getPlace();
+      if (place && place.geometry && place.geometry.location) {
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+        setNewLatitude(lat);
+        setNewLongitude(lng);
+        setMapCenter({ lat, lng });
+        setNewLocation(place.formatted_address || place.name || '');
+      }
+    }
+  };
+
+  const handleMapClick = (e: google.maps.MapMouseEvent) => {
+    if (!e.latLng) return;
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+    setNewLatitude(lat);
+    setNewLongitude(lng);
+    setMapCenter({ lat, lng });
+
+    if (typeof window !== 'undefined' && (window as any).google) {
+      const geocoder = new (window as any).google.maps.Geocoder();
+      geocoder.geocode({ location: { lat, lng } }, (results: any, status: any) => {
+        if (status === 'OK' && results && results[0]) {
+          setNewLocation(results[0].formatted_address);
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     fetchProjects();
@@ -90,7 +144,10 @@ export default function CustomerProjectsPage() {
     try {
       const response = await api.post('/projects', {
         name: newName.trim(),
-        description: newDescription.trim()
+        description: newDescription.trim(),
+        location: newLocation.trim() || undefined,
+        latitude: newLatitude !== null ? newLatitude : undefined,
+        longitude: newLongitude !== null ? newLongitude : undefined,
       });
       
       if (response.success) {
@@ -98,6 +155,9 @@ export default function CustomerProjectsPage() {
         setCreateModalOpen(false);
         setNewName('');
         setNewDescription('');
+        setNewLocation('');
+        setNewLatitude(null);
+        setNewLongitude(null);
         fetchProjects();
       } else {
         showToast(response.message || 'Failed to create project', 'error');
@@ -243,7 +303,16 @@ export default function CustomerProjectsPage() {
                     </button>
                   </div>
                   <h3 className="font-bold text-gray-900 text-lg truncate mb-1">{project.name}</h3>
-                  <p className="text-gray-500 text-sm line-clamp-2 h-10 mb-4">{project.description || 'No description provided'}</p>
+                  <p className="text-gray-500 text-sm line-clamp-2 h-10 mb-2">{project.description || 'No description provided'}</p>
+                  {project.location && (
+                    <div className="flex items-center text-xs text-gray-600 mb-3 truncate">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className="truncate">{project.location}</span>
+                    </div>
+                  )}
                   <div className="flex items-center text-xs text-gray-400 border-t border-gray-50 pt-3">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -260,8 +329,8 @@ export default function CustomerProjectsPage() {
       {/* Create Project Modal */}
       {createModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setCreateModalOpen(false)}>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
               <h3 className="text-xl font-bold text-gray-900">Create New Project</h3>
               <button onClick={() => setCreateModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -279,7 +348,7 @@ export default function CustomerProjectsPage() {
                     value={newName}
                     onChange={e => setNewName(e.target.value)}
                     placeholder="E.g. Downtown Office Renovation"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition-all"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition-all text-sm"
                   />
                 </div>
                 <div>
@@ -288,9 +357,61 @@ export default function CustomerProjectsPage() {
                     value={newDescription}
                     onChange={e => setNewDescription(e.target.value)}
                     placeholder="Add details about this project..."
-                    rows={4}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition-all resize-none"
+                    rows={2}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition-all resize-none text-sm"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Location (Optional)</label>
+                  {isLoaded ? (
+                    <div className="space-y-3">
+                      <Autocomplete onLoad={ref => autocompleteRef.current = ref} onPlaceChanged={handlePlaceSelect}>
+                        <div className="relative">
+                          <svg className="w-5 h-5 absolute left-3.5 top-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <input 
+                            type="text" 
+                            placeholder="Search project address..." 
+                            value={newLocation} 
+                            onChange={e => setNewLocation(e.target.value)}
+                            className="w-full pl-11 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" 
+                          />
+                          {newLocation && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewLocation('');
+                                setNewLatitude(null);
+                                setNewLongitude(null);
+                              }}
+                              className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 text-sm font-bold"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      </Autocomplete>
+
+                      <div className="h-[200px] rounded-xl overflow-hidden border border-gray-200">
+                        <GoogleMap 
+                          mapContainerStyle={{ width: '100%', height: '100%' }} 
+                          center={mapCenter} 
+                          zoom={newLatitude && newLongitude ? 14 : 10} 
+                          onClick={handleMapClick} 
+                          options={{ streetViewControl: false, mapTypeControl: false }}
+                        >
+                          {newLatitude && newLongitude && <Marker position={{ lat: newLatitude, lng: newLongitude }} />}
+                        </GoogleMap>
+                      </div>
+                      <p className="text-xs text-gray-400">Click on the map or search to set the project address</p>
+                    </div>
+                  ) : (
+                    <div className="h-[100px] flex items-center justify-center bg-gray-50 rounded-xl border border-gray-200 text-sm text-gray-400">
+                      Loading Map...
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="mt-8 flex gap-3">
@@ -351,16 +472,29 @@ export default function CustomerProjectsPage() {
             
             <div className="overflow-y-auto flex-1 p-6">
               {selectedProject.description && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-1">Description</h4>
+                  <p className="text-gray-600 bg-gray-50 p-3 rounded-xl text-sm">{selectedProject.description}</p>
+                </div>
+              )}
+
+              {selectedProject.location && (
                 <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-2">Description</h4>
-                  <p className="text-gray-600 bg-gray-50 p-4 rounded-xl text-sm">{selectedProject.description}</p>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-1">Location</h4>
+                  <div className="bg-gray-50 p-3 rounded-xl flex items-start gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-sm text-gray-700">{selectedProject.location}</span>
+                  </div>
                 </div>
               )}
               
               <div className="flex items-center justify-between mb-4">
                 <h4 className="font-semibold text-gray-900">Orders in this Project</h4>
                 <Link 
-                  href="/dashboard/customer/order" 
+                  href={`/dashboard/customer/order?projectId=${selectedProject.id}&category=commercial`} 
                   className="text-sm font-medium text-green-600 hover:underline flex items-center gap-1"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

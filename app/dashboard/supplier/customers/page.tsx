@@ -24,6 +24,15 @@ export default function SupplierCustomersPage() {
     email: '',
   });
 
+  // Add Customer modal states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [submittingAdd, setSubmittingAdd] = useState(false);
+  const [addFormData, setAddFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+  });
+
   useEffect(() => {
     fetchCustomers();
   }, []);
@@ -79,6 +88,29 @@ export default function SupplierCustomersPage() {
     setSubmitting(false);
   };
 
+  const handleAddCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addFormData.name.trim() || !addFormData.phone.trim()) {
+      showToast('Name and mobile number are required', 'error');
+      return;
+    }
+    setSubmittingAdd(true);
+    const response = await api.post<any>('/supplier/customers', {
+      name: addFormData.name.trim(),
+      phone: addFormData.phone.trim(),
+      email: addFormData.email.trim() || undefined,
+    });
+    if (response.success) {
+      showToast(response.message || 'Customer added successfully', 'success');
+      setShowAddModal(false);
+      setAddFormData({ name: '', phone: '', email: '' });
+      fetchCustomers();
+    } else {
+      showToast(response.message || 'Failed to add customer', 'error');
+    }
+    setSubmittingAdd(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
@@ -98,6 +130,20 @@ export default function SupplierCustomersPage() {
             <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>My Customers</h1>
             <p style={{ color: 'var(--color-text-secondary)' }}>Manage customers assigned to your account</p>
           </div>
+          <button
+            onClick={() => {
+              setAddFormData({ name: '', phone: '', email: '' });
+              setShowAddModal(true);
+            }}
+            className="btn btn-primary flex items-center px-4 py-2 cursor-pointer transition-all hover:opacity-95 shadow-sm"
+            style={{ background: 'linear-gradient(135deg, #29B554 0%, #6EAD16 100%)', color: 'white', border: 'none' }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add Customer
+          </button>
         </div>
 
         <div className="table-container">
@@ -148,70 +194,151 @@ export default function SupplierCustomersPage() {
           </table>
         </div>
 
+        {/* Edit Customer Modal */}
         {showModal && editingCustomer && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }} onClick={() => setShowModal(false)}>
-            <div className="card" style={{
-              maxWidth: '500px',
-              width: '90%',
-              maxHeight: '90vh',
-              overflow: 'auto',
-            }} onClick={(e) => e.stopPropagation()}>
-              <h2 style={{ marginBottom: '1.5rem' }}>Edit Customer</h2>
-              <form onSubmit={handleSubmit}>
-                <div className="form-group">
-                  <label className="form-label">Name *</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+              <div className="px-6 py-4 border-b flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-800">Edit Customer</h2>
+                <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              <form onSubmit={handleSubmit} className="p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Customer Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Enter customer name"
+                      className="w-full px-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                    <input
+                      type="text"
+                      value={editingCustomer.phone}
+                      disabled
+                      className="w-full px-4 py-2 border rounded-md bg-gray-100 text-gray-500 cursor-not-allowed outline-none"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Phone number cannot be changed</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="customer@example.com"
+                      className="w-full px-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 outline-none"
+                    />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Phone</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={editingCustomer.phone}
-                    disabled
-                    style={{ backgroundColor: 'var(--color-bg-secondary)', cursor: 'not-allowed', opacity: 0.7 }}
-                  />
-                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '0.25rem' }}>Phone cannot be changed</p>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Email (Optional)</label>
-                  <input
-                    type="email"
-                    className="form-control"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-                  <button type="submit" className="btn btn-primary cursor-pointer" disabled={submitting}>
-                    {submitting ? 'Saving...' : 'Update'}
-                  </button>
+                <div className="mt-8 flex justify-end gap-3">
                   <button
                     type="button"
-                    className="btn btn-outline cursor-pointer"
                     onClick={() => setShowModal(false)}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md font-medium cursor-pointer"
                   >
                     Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md font-medium flex items-center cursor-pointer disabled:opacity-70"
+                  >
+                    {submitting ? 'Saving...' : 'Update'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Customer Modal */}
+        {showAddModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+              <div className="px-6 py-4 border-b flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-800">Add Customer</h2>
+                <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              <form onSubmit={handleAddCustomer} className="p-6">
+                <p className="text-sm text-gray-500 mb-4">
+                  If an account already exists with this mobile number, they will be assigned to your account.
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Customer Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Enter customer name"
+                      value={addFormData.name}
+                      onChange={(e) => setAddFormData({ ...addFormData, name: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Mobile Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="e.g. 0771234567"
+                      value={addFormData.phone}
+                      onChange={(e) => setAddFormData({ ...addFormData, phone: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 outline-none"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
+                    <input
+                      type="email"
+                      placeholder="customer@example.com"
+                      value={addFormData.email}
+                      onChange={(e) => setAddFormData({ ...addFormData, email: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-8 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md font-medium cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingAdd}
+                    className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md font-medium flex items-center cursor-pointer disabled:opacity-70"
+                  >
+                    {submittingAdd ? 'Adding...' : 'Add Customer'}
                   </button>
                 </div>
               </form>
