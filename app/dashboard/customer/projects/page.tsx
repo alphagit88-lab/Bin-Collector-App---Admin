@@ -365,7 +365,7 @@ export default function CustomerProjectsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Project Location (Optional)</label>
                   {isLoaded ? (
                     <div className="space-y-3">
-                      <Autocomplete onLoad={ref => autocompleteRef.current = ref} onPlaceChanged={handlePlaceSelect}>
+                      <Autocomplete onLoad={ref => autocompleteRef.current = ref} onPlaceChanged={handlePlaceSelect} options={{ componentRestrictions: { country: 'ca' } }}>
                         <div className="relative">
                           <svg className="w-5 h-5 absolute left-3.5 top-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
