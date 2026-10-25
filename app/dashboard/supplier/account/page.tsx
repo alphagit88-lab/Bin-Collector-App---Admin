@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api, API_BASE_URL } from '@/lib/api';
+import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
+import PasswordRequirements from '@/components/PasswordRequirements';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 
 const mapContainerStyle = {
@@ -103,6 +105,10 @@ export default function AccountSettingsPage() {
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentPassword.trim()) {
+      showToast('Current password is required', 'error');
+      return;
+    }
     setLoadingProfile(true);
     try {
       const response = await api.put('/auth/profile', { name, email, phone });
@@ -121,14 +127,23 @@ export default function AccountSettingsPage() {
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword !== confirmPassword) {
+    const normalizedPassword = normalizePassword(newPassword);
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      showToast(passwordError, 'error');
+      return;
+    }
+    if (normalizedPassword !== normalizePassword(confirmPassword)) {
       showToast('Passwords do not match', 'error');
       return;
     }
     
     setLoadingPassword(true);
     try {
-      const response = await api.put('/auth/password', { currentPassword, newPassword });
+      const response = await api.put('/auth/password', {
+        currentPassword: currentPassword.trim(),
+        newPassword: normalizedPassword,
+      });
       if (response.success) {
         showToast('Password changed successfully', 'success');
         setCurrentPassword('');
@@ -303,13 +318,14 @@ export default function AccountSettingsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <PasswordRequirements password={newPassword} />
                 <input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
               <div>
@@ -320,7 +336,7 @@ export default function AccountSettingsPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
               <button

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
+import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
+import PasswordRequirements from '@/components/PasswordRequirements';
 
 interface Supplier {
   id: number;
@@ -94,8 +96,9 @@ export default function SuppliersPage() {
         showToast(response.message || 'Failed to update supplier', 'error');
       }
     } else {
-      if (!formData.password || formData.password.length < 6) {
-        showToast('Password must be at least 6 characters', 'error');
+      const passwordError = validatePassword(formData.password);
+      if (passwordError) {
+        showToast(passwordError, 'error');
         return;
       }
 
@@ -104,7 +107,7 @@ export default function SuppliersPage() {
         phone: formData.phone,
         email: formData.email || undefined,
         role: 'supplier',
-        password: formData.password,
+        password: normalizePassword(formData.password),
         supplierType: formData.supplierType,
       });
 
@@ -257,13 +260,14 @@ export default function SuppliersPage() {
 
                     <div className="form-group">
                       <label className="form-label">Password *</label>
+                      <PasswordRequirements password={formData.password} />
                       <input
                         type="password"
                         className="form-control"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         required
-                        minLength={6}
+                        minLength={8}
                       />
                     </div>
                   </>

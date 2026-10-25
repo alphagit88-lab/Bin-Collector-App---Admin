@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
 
 interface User {
   id: number;
@@ -83,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await api.post<{ user: User; token: string }>('/auth/login', {
         phone,
-        password,
+        password: password.trim(),
       });
 
       if (response.success && response.data) {
@@ -128,12 +129,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supplierType?: 'commercial' | 'residential' | 'commercial_residential'
   ) => {
     try {
+      const passwordError = validatePassword(password);
+      if (passwordError) return { success: false, message: passwordError };
+
       const response = await api.post<{ user: User; token: string }>('/auth/signup', {
         name,
         phone,
         email,
         role,
-        password,
+        password: normalizePassword(password),
         supplierType,
       });
 

@@ -92,7 +92,7 @@ function LoginContent() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-black mb-2">
-              Phone Number
+              Email or Phone Number
             </label>
             <input
               type="text"
@@ -101,7 +101,7 @@ function LoginContent() {
               onChange={(e) => setPhone(e.target.value)}
               required
               className="w-full h-10 rounded-md border border-gray-300 bg-background px-3 py-2 text-sm focus:border-[#10B981] focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:ring-offset-2"
-              placeholder="+1234567890"
+              placeholder="Email or Phone Number"
             />
           </div>
 
@@ -116,7 +116,7 @@ function LoginContent() {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="w-full h-10 rounded-md border border-gray-300 bg-background px-3 py-2 text-sm focus:border-[#10B981] focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:ring-offset-2"
-              placeholder="Enter your password"
+              placeholder="Password"
             />
           </div>
 

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
+import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
+import PasswordRequirements from '@/components/PasswordRequirements';
 
 interface Driver {
   id: number;
@@ -50,6 +52,11 @@ export default function DriversPage() {
       showToast('Please fill in all required fields', 'error');
       return;
     }
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      showToast(passwordError, 'error');
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -57,7 +64,7 @@ export default function DriversPage() {
         name,
         phone,
         email,
-        password,
+        password: normalizePassword(password),
         role: 'driver'
       });
 
@@ -211,14 +218,15 @@ export default function DriversPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Initial Password <span className="text-red-500">*</span></label>
+                  <PasswordRequirements password={password} />
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Min 6 characters"
+                    placeholder="Enter password"
                     className="w-full px-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 outline-none"
                     required
-                    minLength={6}
+                    minLength={8}
                   />
                 </div>
               </div>

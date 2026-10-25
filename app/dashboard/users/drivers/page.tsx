@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
+import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
+import PasswordRequirements from '@/components/PasswordRequirements';
 
 interface User {
   id: number;
@@ -112,15 +114,16 @@ export default function DriversPage() {
         showToast(response.message || 'Failed to update driver', 'error');
       }
     } else {
-      if (!formData.password || formData.password.length < 6) {
-        showToast('Password must be at least 6 characters', 'error');
+      const passwordError = validatePassword(formData.password);
+      if (passwordError) {
+        showToast(passwordError, 'error');
         return;
       }
 
       const response = await api.post<{ user: User }>('/admin/users', {
         ...payload,
         phone: formData.phone,
-        password: formData.password,
+        password: normalizePassword(formData.password),
         role: 'driver',
       });
 
@@ -267,13 +270,14 @@ export default function DriversPage() {
 
                     <div className="form-group">
                       <label className="form-label">Password *</label>
+                      <PasswordRequirements password={formData.password} />
                       <input
                         type="password"
                         className="form-control"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         required
-                        minLength={6}
+                        minLength={8}
                       />
                     </div>
                   </>
