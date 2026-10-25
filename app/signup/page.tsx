@@ -7,6 +7,7 @@ import { useToast } from '@/contexts/ToastContext';
 import Link from 'next/link';
 import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
 import PasswordRequirements from '@/components/PasswordRequirements';
+import PasswordInput from '@/components/PasswordInput';
 import { normalizeCanadianPhone, validateCanadianPhone } from '@/lib/phoneValidation';
 
 function SignupContent() {
@@ -240,8 +241,7 @@ function SignupContent() {
               Password <span className="text-red-500">*</span>
             </label>
             <PasswordRequirements password={password} />
-            <input
-              type="password"
+            <PasswordInput
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

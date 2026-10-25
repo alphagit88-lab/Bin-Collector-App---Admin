@@ -6,6 +6,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { api, API_BASE_URL } from '@/lib/api';
 import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
 import PasswordRequirements from '@/components/PasswordRequirements';
+import PasswordInput from '@/components/PasswordInput';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 
 const mapContainerStyle = {
@@ -315,23 +316,20 @@ export default function CustomerAccountPage() {
             <form onSubmit={handlePasswordUpdate} className="space-y-4 max-w-md">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-                <input
-                  type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
+                <PasswordInput value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
                 <PasswordRequirements password={newPassword} />
-                <input 
-                  type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} minLength={8}
+                <PasswordInput value={newPassword} onChange={e => setNewPassword(e.target.value)} minLength={8}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                <input 
-                  type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} minLength={8}
+                <PasswordInput value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} minLength={8}
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" required
                 />
               </div>

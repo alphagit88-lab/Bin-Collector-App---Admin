@@ -5,6 +5,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
 import PasswordRequirements from '@/components/PasswordRequirements';
+import PasswordInput from '@/components/PasswordInput';
 
 interface Driver {
   id: number;
@@ -219,8 +220,7 @@ export default function DriversPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Initial Password <span className="text-red-500">*</span></label>
                   <PasswordRequirements password={password} />
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter password"

@@ -6,6 +6,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
 import PasswordRequirements from '@/components/PasswordRequirements';
+import PasswordInput from '@/components/PasswordInput';
 
 interface Supplier {
   id: number;
@@ -261,8 +262,7 @@ export default function SuppliersPage() {
                     <div className="form-group">
                       <label className="form-label">Password *</label>
                       <PasswordRequirements password={formData.password} />
-                      <input
-                        type="password"
+                      <PasswordInput
                         className="form-control"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}

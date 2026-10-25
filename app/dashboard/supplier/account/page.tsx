@@ -6,6 +6,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { api, API_BASE_URL } from '@/lib/api';
 import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
 import PasswordRequirements from '@/components/PasswordRequirements';
+import PasswordInput from '@/components/PasswordInput';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 
 const mapContainerStyle = {
@@ -308,8 +309,7 @@ export default function AccountSettingsPage() {
             <form onSubmit={handlePasswordChange} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
@@ -319,8 +319,7 @@ export default function AccountSettingsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
                 <PasswordRequirements password={newPassword} />
-                <input
-                  type="password"
+                <PasswordInput
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
@@ -330,8 +329,7 @@ export default function AccountSettingsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"

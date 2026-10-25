@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import PasswordInput from '@/components/PasswordInput';
 import { useToast } from '@/contexts/ToastContext';
 import Link from 'next/link';
 
@@ -109,8 +110,7 @@ function LoginContent() {
             <label htmlFor="password" className="block text-sm font-medium text-black mb-2">
               Password
             </label>
-            <input
-              type="password"
+            <PasswordInput
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
