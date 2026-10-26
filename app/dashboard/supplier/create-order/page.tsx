@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { compressImages } from '@/lib/imageCompression';
+import { normalizeCanadianPhone, validateCanadianPhone } from '@/lib/phoneValidation';
 
 const mapContainerStyle = {
   width: '100%',
@@ -434,12 +435,17 @@ export default function CreateOrderPage() {
       showToast('Please fill in all required fields', 'error');
       return;
     }
+    const phoneError = validateCanadianPhone(customerPhone);
+    if (phoneError) {
+      showToast(phoneError, 'error');
+      return;
+    }
 
     setLoading(true);
     try {
       const formData = new FormData();
       formData.append('customer_name', customerName);
-      formData.append('customer_phone', customerPhone);
+      formData.append('customer_phone', normalizeCanadianPhone(customerPhone));
       formData.append('service_category', serviceCategory);
       formData.append('location', location);
       formData.append('start_date', startDate);

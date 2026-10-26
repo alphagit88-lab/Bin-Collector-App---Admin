@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import DateRangeFilter from '@/components/DateRangeFilter';
+import ListPagination from '@/components/ListPagination';
+import { useListPagination } from '@/hooks/useListPagination';
 import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
@@ -35,6 +38,8 @@ export default function InvoicesPage() {
   const searchParams = useSearchParams();
   const invoiceIdParam = searchParams.get('invoice_id');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const invoicePagination = useListPagination(invoices, invoice => invoice.invoice_date || invoice.created_at, 10, serverTotalPages);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>('all');
@@ -46,12 +51,16 @@ export default function InvoicesPage() {
     } else {
       fetchInvoices();
     }
-  }, [filterPaymentStatus, filterPaymentMethod, invoiceIdParam]);
+  }, [filterPaymentStatus, filterPaymentMethod, invoiceIdParam, invoicePagination.page, invoicePagination.startDate, invoicePagination.endDate]);
 
   const fetchInvoices = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      params.set('page', invoicePagination.page.toString());
+      params.set('limit', '10');
+      if (invoicePagination.startDate) params.set('startDate', invoicePagination.startDate);
+      if (invoicePagination.endDate) params.set('endDate', invoicePagination.endDate);
       if (filterPaymentStatus !== 'all') {
         params.append('payment_status', filterPaymentStatus);
       }
@@ -60,9 +69,10 @@ export default function InvoicesPage() {
       }
       const queryString = params.toString();
       const url = `/invoices${queryString ? `?${queryString}` : ''}`;
-      const response = await api.get<{ invoices: Invoice[] }>(url);
+      const response = await api.get<{ invoices: Invoice[]; pagination?: { totalPages: number } }>(url);
       if (response.success && response.data) {
         setInvoices(response.data.invoices);
+        setServerTotalPages(Math.max(1, response.data.pagination?.totalPages || 1));
         setSelectedInvoice(null);
       } else {
         showToast('Failed to fetch invoices', 'error');
@@ -320,6 +330,7 @@ export default function InvoicesPage() {
             </select>
           </div>
         </div>
+        <div className="mb-4 rounded-xl bg-white p-4"><DateRangeFilter startDate={invoicePagination.startDate} endDate={invoicePagination.endDate} onStartDateChange={invoicePagination.setStartDate} onEndDateChange={invoicePagination.setEndDate} /></div>
 
         {/* Invoices Table */}
         <div className="table-container">
@@ -336,7 +347,7 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody>
-              {invoices.length === 0 ? (
+              {invoicePagination.filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-secondary)' }}>
                     <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📄</div>
@@ -349,7 +360,7 @@ export default function InvoicesPage() {
                   </td>
                 </tr>
               ) : (
-                invoices.map((invoice) => (
+                invoicePagination.pagedItems.map((invoice) => (
                   <tr key={invoice.id}>
                     <td>
                       <a
@@ -393,6 +404,7 @@ export default function InvoicesPage() {
               )}
             </tbody>
           </table>
+          <ListPagination page={invoicePagination.page} totalPages={invoicePagination.totalPages} onPageChange={invoicePagination.setPage} />
         </div>
       </div>
     </div>

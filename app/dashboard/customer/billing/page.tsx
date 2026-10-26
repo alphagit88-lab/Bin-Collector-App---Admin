@@ -5,6 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import BillTemplate from '@/components/dashboard/BillTemplate';
+import DateRangeFilter from '@/components/DateRangeFilter';
+import ListPagination from '@/components/ListPagination';
+import { useListPagination } from '@/hooks/useListPagination';
 
 // Field names match mobile app's BillingScreen.tsx and backend aliases
 interface Invoice {
@@ -24,24 +27,21 @@ export default function CustomerBillingPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [printData, setPrintData] = useState<Invoice | null>(null);
-
-  useEffect(() => {
-    // Only fetch if user is allowed to view billing
-    if (user?.canViewBilling !== false) {
-      fetchInvoices();
-    } else {
-      setLoading(false);
-    }
-  }, [user]);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
 
   const fetchInvoices = async () => {
     try {
-      const response = await api.get<any>('/billing/invoices');
+      const params = new URLSearchParams({ page: invoicePagination.page.toString(), limit: '10' });
+      if (invoicePagination.startDate) params.set('startDate', invoicePagination.startDate);
+      if (invoicePagination.endDate) params.set('endDate', invoicePagination.endDate);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      const response = await api.get<any>(`/billing/invoices?${params}`);
       
       if (response.success) {
         // The API client returns the raw response body, so invoices is at the top level
         const invoiceList = (response as any).invoices || response.data?.invoices || [];
         setInvoices(invoiceList);
+        setServerTotalPages(Math.max(1, (response as any).pagination?.totalPages || response.data?.pagination?.totalPages || 1));
       } else {
         showToast(response.message || 'Failed to load invoices', 'error');
       }
@@ -70,6 +70,14 @@ export default function CustomerBillingPage() {
     i.invoice_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (i.service_request_number && i.service_request_number.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+  const invoicePagination = useListPagination(filteredInvoices, invoice => invoice.created_at, 10, serverTotalPages);
+
+  useEffect(() => {
+    if (user?.canViewBilling !== false) fetchInvoices();
+    else setLoading(false);
+  }, [user, invoicePagination.page, invoicePagination.startDate, invoicePagination.endDate, searchQuery]);
+
+  useEffect(() => invoicePagination.setPage(1), [searchQuery]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -109,7 +117,7 @@ export default function CustomerBillingPage() {
         </div>
 
         {/* Filters/Search */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6 flex items-center">
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6 flex flex-col gap-4">
           <div className="relative flex-1">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-3.5 top-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -122,6 +130,7 @@ export default function CustomerBillingPage() {
               className="w-full pl-11 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition-all text-sm" 
             />
           </div>
+          <DateRangeFilter startDate={invoicePagination.startDate} endDate={invoicePagination.endDate} onStartDateChange={invoicePagination.setStartDate} onEndDateChange={invoicePagination.setEndDate} />
         </div>
 
         {/* Invoice List */}
@@ -130,7 +139,7 @@ export default function CustomerBillingPage() {
             <div className="flex items-center justify-center py-20">
               <div className="w-10 h-10 border-4 rounded-full animate-spin border-green-500 border-t-transparent"></div>
             </div>
-          ) : filteredInvoices.length === 0 ? (
+          ) : invoicePagination.filteredItems.length === 0 ? (
             <div className="text-center py-20">
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -157,7 +166,7 @@ export default function CustomerBillingPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {filteredInvoices.map(invoice => (
+                  {invoicePagination.pagedItems.map(invoice => (
                     <tr key={invoice.id} className="hover:bg-gray-50/50 transition-colors group">
                       <td className="px-6 py-4">
                         <p className="font-semibold text-gray-900">{invoice.invoice_number}</p>
@@ -193,6 +202,7 @@ export default function CustomerBillingPage() {
               </table>
             </div>
           )}
+          <ListPagination page={invoicePagination.page} totalPages={invoicePagination.totalPages} onPageChange={invoicePagination.setPage} />
         </div>
       </div>
       

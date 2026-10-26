@@ -6,6 +6,8 @@ import { api } from '@/lib/api';
 import JobDetailModal from '@/components/dashboard/JobDetailModal';
 import { useSearchParams } from 'next/navigation';
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
+import ListPagination from '@/components/ListPagination';
+import { useListPagination } from '@/hooks/useListPagination';
 
 const mapContainerStyle = {
   width: '100%',
@@ -54,6 +56,8 @@ function SupplierJobsContent() {
   const initialStatus = searchParams.get('status') || 'all';
 
   const [bookings, setBookings] = useState<ServiceRequest[]>([]);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const [availableCustomers, setAvailableCustomers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>(initialStatus);
   const [filterCustomer, setFilterCustomer] = useState<string>('');
@@ -64,6 +68,7 @@ function SupplierJobsContent() {
   const [filterEndDate, setFilterEndDate] = useState<string>('');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [selectedJob, setSelectedJob] = useState<ServiceRequest | null>(null);
+  const bookingPagination = useListPagination(bookings, booking => booking.start_date, 10, serverTotalPages);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -73,14 +78,22 @@ function SupplierJobsContent() {
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+  }, [filterStatus, filterCustomer, searchTerm, filterStartDate, filterEndDate, bookingPagination.page]);
 
   const fetchBookings = async () => {
     setLoading(true);
     try {
-      const response = await api.get<{ requests: ServiceRequest[] }>('/bookings/supplier/requests');
+      const params = new URLSearchParams({ page: bookingPagination.page.toString(), limit: '10' });
+      if (filterStatus !== 'all') params.set('status', filterStatus);
+      if (filterCustomer) params.set('customer', filterCustomer);
+      if (searchTerm.trim()) params.set('search', searchTerm.trim());
+      if (filterStartDate) params.set('startDate', filterStartDate);
+      if (filterEndDate) params.set('endDate', filterEndDate);
+      const response = await api.get<{ requests: ServiceRequest[]; pagination?: { totalPages: number }; filterOptions?: { customers: string[] } }>(`/bookings/supplier/requests?${params}`);
       if (response.success && response.data) {
         setBookings(response.data.requests);
+        setServerTotalPages(Math.max(1, response.data.pagination?.totalPages || 1));
+        if (response.data.filterOptions?.customers) setAvailableCustomers(response.data.filterOptions.customers);
       } else {
         showToast('Failed to fetch jobs', 'error');
       }
@@ -240,7 +253,7 @@ function SupplierJobsContent() {
               onChange={(e) => setFilterCustomer(e.target.value)}
             >
               <option value="">All Customers</option>
-              {Array.from(new Set(bookings.map(b => b.customer_name))).map(name => (
+              {availableCustomers.map(name => (
                 <option key={name} value={name}>{name}</option>
               ))}
             </select>
@@ -279,14 +292,14 @@ function SupplierJobsContent() {
               </tr>
             </thead>
             <tbody>
-              {filteredBookings.length === 0 ? (
+              {bookingPagination.filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ textAlign: 'center', padding: '2rem' }}>
                     No jobs found
                   </td>
                 </tr>
               ) : (
-                filteredBookings.map((booking) => (
+                bookingPagination.pagedItems.map((booking) => (
                   <tr key={booking.id}>
                     <td style={{ fontWeight: 500, fontFamily: 'monospace', fontSize: '0.875rem' }}>
                       {booking.request_id}
@@ -370,6 +383,7 @@ function SupplierJobsContent() {
               )}
             </tbody>
           </table>
+          <ListPagination page={bookingPagination.page} totalPages={bookingPagination.totalPages} onPageChange={bookingPagination.setPage} />
         </div>
         ) : (
           <div className="h-[600px] w-full rounded-xl overflow-hidden shadow-md border relative bg-white mt-6">

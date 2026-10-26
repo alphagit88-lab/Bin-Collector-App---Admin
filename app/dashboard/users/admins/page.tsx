@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
 import PasswordRequirements from '@/components/PasswordRequirements';
 import PasswordInput from '@/components/PasswordInput';
+import { normalizeCanadianPhone, validateCanadianPhone } from '@/lib/phoneValidation';
 
 interface Admin {
   id: number;
@@ -92,6 +93,11 @@ export default function AdminsPage() {
         showToast(response.message || 'Failed to update admin', 'error');
       }
     } else {
+      const phoneError = validateCanadianPhone(formData.phone);
+      if (phoneError) {
+        showToast(phoneError, 'error');
+        return;
+      }
       const passwordError = validatePassword(formData.password);
       if (passwordError) {
         showToast(passwordError, 'error');
@@ -100,7 +106,7 @@ export default function AdminsPage() {
 
       const response = await api.post<{ user: Admin }>('/admin', {
         name: formData.name,
-        phone: formData.phone,
+        phone: normalizeCanadianPhone(formData.phone),
         email: formData.email || undefined,
         password: normalizePassword(formData.password),
       });

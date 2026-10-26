@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
+import { normalizeCanadianPhone, validateCanadianPhone } from '@/lib/phoneValidation';
 
 interface Customer {
   id: number;
@@ -94,10 +95,15 @@ export default function SupplierCustomersPage() {
       showToast('Name and mobile number are required', 'error');
       return;
     }
+    const phoneError = validateCanadianPhone(addFormData.phone);
+    if (phoneError) {
+      showToast(phoneError, 'error');
+      return;
+    }
     setSubmittingAdd(true);
     const response = await api.post<any>('/supplier/customers', {
       name: addFormData.name.trim(),
-      phone: addFormData.phone.trim(),
+      phone: normalizeCanadianPhone(addFormData.phone),
       email: addFormData.email.trim() || undefined,
     });
     if (response.success) {
@@ -305,7 +311,7 @@ export default function SupplierCustomersPage() {
                     </label>
                     <input
                       type="tel"
-                      placeholder="e.g. 0771234567"
+                      placeholder="e.g., +14165550123"
                       value={addFormData.phone}
                       onChange={(e) => setAddFormData({ ...addFormData, phone: e.target.value })}
                       className="w-full px-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 outline-none"

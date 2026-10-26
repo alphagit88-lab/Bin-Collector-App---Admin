@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
 import PasswordRequirements from '@/components/PasswordRequirements';
 import PasswordInput from '@/components/PasswordInput';
+import { normalizeCanadianPhone, validateCanadianPhone } from '@/lib/phoneValidation';
 
 interface Driver {
   id: number;
@@ -53,6 +54,11 @@ export default function DriversPage() {
       showToast('Please fill in all required fields', 'error');
       return;
     }
+    const phoneError = validateCanadianPhone(phone);
+    if (phoneError) {
+      showToast(phoneError, 'error');
+      return;
+    }
     const passwordError = validatePassword(password);
     if (passwordError) {
       showToast(passwordError, 'error');
@@ -63,7 +69,7 @@ export default function DriversPage() {
       setSubmitting(true);
       const response = await api.post('/supplier/drivers', {
         name,
-        phone,
+        phone: normalizeCanadianPhone(phone),
         email,
         password: normalizePassword(password),
         role: 'driver'

@@ -9,6 +9,10 @@ import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-map
 import Link from 'next/link';
 import StripePayment from '@/components/StripePayment';
 import { compressImages } from '@/lib/imageCompression';
+import { normalizeCanadianPhone, validateCanadianPhone } from '@/lib/phoneValidation';
+import DateRangeFilter from '@/components/DateRangeFilter';
+import ListPagination from '@/components/ListPagination';
+import { useListPagination } from '@/hooks/useListPagination';
 
 const GOOGLE_LIBRARIES: any[] = ['places'];
 
@@ -85,6 +89,8 @@ function BookingsContent() {
   const { showToast } = useToast();
   const searchParams = useSearchParams();
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const bookingPagination = useListPagination(bookings, booking => booking.start_date, 10, serverTotalPages);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
@@ -118,14 +124,21 @@ function BookingsContent() {
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<{ requests: Booking[] }>('/bookings/my-requests');
-      if (res.success && res.data) setBookings(res.data.requests || []);
+      const params = new URLSearchParams({ page: bookingPagination.page.toString(), limit: '10' });
+      if (bookingPagination.startDate) params.set('startDate', bookingPagination.startDate);
+      if (bookingPagination.endDate) params.set('endDate', bookingPagination.endDate);
+      if (searchQuery.trim()) params.set('search', searchQuery.trim());
+      const res = await api.get<{ requests: Booking[]; pagination?: { totalPages: number } }>(`/bookings/my-requests?${params}`);
+      if (res.success && res.data) {
+        setBookings(res.data.requests || []);
+        setServerTotalPages(Math.max(1, res.data.pagination?.totalPages || 1));
+      }
     } catch (e) {
       showToast('Failed to load bookings', 'error');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [bookingPagination.page, bookingPagination.startDate, bookingPagination.endDate, searchQuery]);
 
   useEffect(() => {
     fetchBookings();
@@ -138,6 +151,7 @@ function BookingsContent() {
       b.location?.toLowerCase().includes(q) ||
       b.service_names?.toLowerCase().includes(q);
   });
+  useEffect(() => bookingPagination.setPage(1), [searchQuery]);
 
   const handleEditClick = (booking: Booking) => {
     setEditBooking(booking);
@@ -201,12 +215,17 @@ function BookingsContent() {
 
   const handleSaveEdit = async () => {
     if (!editBooking) return;
+    const phoneError = validateCanadianPhone(editContactPhone);
+    if (phoneError) {
+      showToast(phoneError, 'error');
+      return;
+    }
     setIsSavingEdit(true);
     try {
       const formData = new FormData();
       if (editStartDate) formData.append('start_date', editStartDate);
       if (editEndDate) formData.append('end_date', editEndDate);
-      formData.append('contact_number', editContactPhone);
+      formData.append('contact_number', normalizeCanadianPhone(editContactPhone));
       formData.append('contact_email', editContactEmail);
       formData.append('instructions', editInstructions);
       formData.append('existing_attachments', JSON.stringify(editExistingAttachments));
@@ -334,6 +353,9 @@ function BookingsContent() {
             value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
         </div>
+        <div className="mb-6 rounded-xl border border-gray-100 bg-white p-4">
+          <DateRangeFilter startDate={bookingPagination.startDate} endDate={bookingPagination.endDate} onStartDateChange={bookingPagination.setStartDate} onEndDateChange={bookingPagination.setEndDate} />
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -347,7 +369,7 @@ function BookingsContent() {
                 center={mapCenter ? { lat: Number(mapCenter.latitude), lng: Number(mapCenter.longitude) } : { lat: 43.6532, lng: -79.3832 }}
                 zoom={mapCenter ? 11 : 4}
                 options={{ streetViewControl: false, mapTypeControl: false }}>
-                {filtered.filter(b => b.latitude && b.longitude).map(b => (
+                {bookingPagination.filteredItems.filter(b => b.latitude && b.longitude).map(b => (
                   <Marker key={b.id}
                     position={{ lat: Number(b.latitude), lng: Number(b.longitude) }}
                     onClick={() => setMapMarkerSelected(b)}
@@ -370,14 +392,14 @@ function BookingsContent() {
               </GoogleMap>
             )}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : bookingPagination.filteredItems.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
             <p className="text-gray-500">No bookings found</p>
             <Link href="/dashboard/customer/order" className="mt-3 inline-block text-green-600 font-medium hover:underline">Place an order →</Link>
           </div>
         ) : (
           <div className="space-y-4">
-            {filtered.map((b, index) => {
+            {bookingPagination.pagedItems.map((b, index) => {
               const attachments = getAttachments(b);
               return (
                 <div key={b.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
@@ -449,6 +471,7 @@ function BookingsContent() {
             })}
           </div>
         )}
+        {viewMode === 'list' && <ListPagination page={bookingPagination.page} totalPages={bookingPagination.totalPages} onPageChange={bookingPagination.setPage} />}
       </div>
 
       {/* Details Modal */}

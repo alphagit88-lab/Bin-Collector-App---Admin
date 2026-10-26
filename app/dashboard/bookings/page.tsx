@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import DateRangeFilter from '@/components/DateRangeFilter';
+import ListPagination from '@/components/ListPagination';
+import { useListPagination } from '@/hooks/useListPagination';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 
@@ -35,6 +38,8 @@ interface ServiceRequest {
 export default function BookingsPage() {
   const { showToast } = useToast();
   const [bookings, setBookings] = useState<ServiceRequest[]>([]);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const bookingPagination = useListPagination(bookings, booking => booking.start_date, 10, serverTotalPages);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [selectedAttachments, setSelectedAttachments] = useState<string[] | null>(null);
@@ -43,15 +48,19 @@ export default function BookingsPage() {
 
   useEffect(() => {
     fetchBookings();
-  }, [filterStatus]);
+  }, [filterStatus, bookingPagination.page, bookingPagination.startDate, bookingPagination.endDate]);
 
   const fetchBookings = async () => {
     setLoading(true);
     try {
-      const params = filterStatus !== 'all' ? `?status=${filterStatus}` : '';
-      const response = await api.get<{ requests: ServiceRequest[] }>(`/bookings/admin/all${params}`);
+      const params = new URLSearchParams({ page: bookingPagination.page.toString(), limit: '10' });
+      if (filterStatus !== 'all') params.set('status', filterStatus);
+      if (bookingPagination.startDate) params.set('startDate', bookingPagination.startDate);
+      if (bookingPagination.endDate) params.set('endDate', bookingPagination.endDate);
+      const response = await api.get<{ requests: ServiceRequest[]; pagination?: { totalPages: number } }>(`/bookings/admin/all?${params}`);
       if (response.success && response.data) {
         setBookings(response.data.requests);
+        setServerTotalPages(Math.max(1, response.data.pagination?.totalPages || 1));
       } else {
         showToast('Failed to fetch bookings', 'error');
       }
@@ -185,6 +194,7 @@ export default function BookingsPage() {
           </button>
         </div>
 
+        <div className="mb-4 rounded-xl bg-white p-4"><DateRangeFilter startDate={bookingPagination.startDate} endDate={bookingPagination.endDate} onStartDateChange={bookingPagination.setStartDate} onEndDateChange={bookingPagination.setEndDate} /></div>
         {/* Bookings Table */}
         <div className="table-container">
           <table className="table">
@@ -205,14 +215,14 @@ export default function BookingsPage() {
               </tr>
             </thead>
             <tbody>
-              {bookings.length === 0 ? (
+              {bookingPagination.filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={12} style={{ textAlign: 'center', padding: '2rem' }}>
                     No bookings found
                   </td>
                 </tr>
               ) : (
-                bookings.map((booking) => (
+                bookingPagination.pagedItems.map((booking) => (
                   <tr key={booking.id}>
                     <td style={{ fontWeight: 500, fontFamily: 'monospace', fontSize: '0.875rem' }}>
                       {booking.request_id}
@@ -341,6 +351,7 @@ export default function BookingsPage() {
               )}
             </tbody>
           </table>
+          <ListPagination page={bookingPagination.page} totalPages={bookingPagination.totalPages} onPageChange={bookingPagination.setPage} />
         </div>
       </div >
 

@@ -17,6 +17,7 @@ function SignupContent() {
   const [role, setRole] = useState('customer');
   const [supplierType, setSupplierType] = useState<'commercial' | 'residential' | 'commercial_residential' | ''>('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { user, loading: authLoading, signup } = useAuth();
@@ -66,6 +67,11 @@ function SignupContent() {
     const passwordError = validatePassword(password);
     if (passwordError) {
       setError(passwordError);
+      return;
+    }
+
+    if (normalizePassword(password) !== normalizePassword(confirmPassword)) {
+      setError('Passwords do not match');
       return;
     }
 
@@ -249,6 +255,22 @@ function SignupContent() {
               minLength={8}
               className="w-full h-10 rounded-md border border-gray-300 bg-background px-3 py-2 text-sm focus:border-[#10B981] focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:ring-offset-2"
               placeholder="Enter your password"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-black mb-2">
+              Confirm Password <span className="text-red-500">*</span>
+            </label>
+            <PasswordInput
+              id="confirmPassword"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
+              className="w-full h-10 rounded-md border border-gray-300 bg-background px-3 py-2 text-sm focus:border-[#10B981] focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:ring-offset-2"
+              placeholder="Confirm your password"
             />
           </div>
 

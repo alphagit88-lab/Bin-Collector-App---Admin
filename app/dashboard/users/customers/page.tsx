@@ -5,8 +5,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
+import DateRangeFilter from '@/components/DateRangeFilter';
+import ListPagination from '@/components/ListPagination';
+import { useListPagination } from '@/hooks/useListPagination';
 import PasswordRequirements from '@/components/PasswordRequirements';
 import PasswordInput from '@/components/PasswordInput';
+import { normalizeCanadianPhone, validateCanadianPhone } from '@/lib/phoneValidation';
 
 interface Customer {
   id: number;
@@ -23,7 +27,9 @@ export default function CustomersPage() {
   const { user: currentUser } = useAuth();
   const { showToast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const customerPagination = useListPagination(customers, customer => customer.created_at, 10, serverTotalPages);
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({
@@ -35,13 +41,17 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [customerPagination.page, customerPagination.startDate, customerPagination.endDate]);
 
   const fetchCustomers = async () => {
     setLoading(true);
-    const response = await api.get<{ users: Customer[] }>('/admin/users/customer');
+    const params = new URLSearchParams({ page: customerPagination.page.toString(), limit: '10' });
+    if (customerPagination.startDate) params.set('startDate', customerPagination.startDate);
+    if (customerPagination.endDate) params.set('endDate', customerPagination.endDate);
+    const response = await api.get<{ users: Customer[]; pagination?: { totalPages: number } }>(`/admin/users/customer?${params}`);
     if (response.success && response.data) {
       setCustomers(response.data.users);
+      setServerTotalPages(Math.max(1, response.data.pagination?.totalPages || 1));
     } else {
       showToast('Failed to fetch customers', 'error');
     }
@@ -115,6 +125,11 @@ export default function CustomersPage() {
         showToast(response.message || 'Failed to update customer', 'error');
       }
     } else {
+      const phoneError = validateCanadianPhone(formData.phone);
+      if (phoneError) {
+        showToast(phoneError, 'error');
+        return;
+      }
       const passwordError = validatePassword(formData.password);
       if (passwordError) {
         showToast(passwordError, 'error');
@@ -123,7 +138,7 @@ export default function CustomersPage() {
 
       const response = await api.post<{ user: Customer }>('/admin/users', {
         name: formData.name,
-        phone: formData.phone,
+        phone: normalizeCanadianPhone(formData.phone),
         email: formData.email || undefined,
         role: 'customer',
         password: normalizePassword(formData.password),
@@ -163,6 +178,7 @@ export default function CustomersPage() {
           </button>
         </div>
 
+        <div className="mb-4 rounded-xl bg-white p-4"><DateRangeFilter startDate={customerPagination.startDate} endDate={customerPagination.endDate} onStartDateChange={customerPagination.setStartDate} onEndDateChange={customerPagination.setEndDate} /></div>
         <div className="table-container">
           <table className="table">
             <thead>
@@ -177,14 +193,14 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {customers.length === 0 ? (
+              {customerPagination.filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
                     No customers found
                   </td>
                 </tr>
               ) : (
-                customers.map((customer) => (
+                customerPagination.pagedItems.map((customer) => (
                   <tr key={customer.id}>
                     <td style={{ fontWeight: 500 }}>{customer.name}</td>
                     <td>{customer.phone}</td>
@@ -243,6 +259,7 @@ export default function CustomersPage() {
               )}
             </tbody>
           </table>
+          <ListPagination page={customerPagination.page} totalPages={customerPagination.totalPages} onPageChange={customerPagination.setPage} />
         </div>
 
         {showModal && (

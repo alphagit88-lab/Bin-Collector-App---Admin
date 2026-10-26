@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import DateRangeFilter from '@/components/DateRangeFilter';
+import ListPagination from '@/components/ListPagination';
+import { useListPagination } from '@/hooks/useListPagination';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
@@ -19,8 +22,11 @@ export default function SupplierBillingPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+  const invoicePagination = useListPagination(invoices, invoice => invoice.created_at, 10, serverTotalPages);
   const [loading, setLoading] = useState(true);
   const [printData, setPrintData] = useState<Invoice | null>(null);
+  const [summary, setSummary] = useState({ total: 0, total_paid: '0' });
 
   useEffect(() => {
     if (user?.role === 'supplier' || user?.canViewBilling) {
@@ -28,14 +34,20 @@ export default function SupplierBillingPage() {
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, invoicePagination.page, invoicePagination.startDate, invoicePagination.endDate]);
 
   const fetchInvoices = async () => {
     try {
-      const response = await api.get<any>('/billing/invoices');
+      const params = new URLSearchParams({ page: invoicePagination.page.toString(), limit: '10' });
+      if (invoicePagination.startDate) params.set('startDate', invoicePagination.startDate);
+      if (invoicePagination.endDate) params.set('endDate', invoicePagination.endDate);
+      const response = await api.get<any>(`/billing/invoices?${params}`);
       if (response.success) {
         const invoiceList = (response as any).invoices || response.data?.invoices || [];
         setInvoices(invoiceList);
+        setServerTotalPages(Math.max(1, (response as any).pagination?.totalPages || response.data?.pagination?.totalPages || 1));
+        const responseSummary = (response as any).summary || response.data?.summary;
+        if (responseSummary) setSummary(responseSummary);
       } else {
         showToast(response.message || 'Failed to load bills', 'error');
       }
@@ -83,7 +95,7 @@ export default function SupplierBillingPage() {
     );
   }
 
-  const totalPaid = invoices.reduce((acc, inv) => acc + (inv.status === 'paid' ? parseFloat(inv.amount) : 0), 0);
+  const totalPaid = parseFloat(summary.total_paid || '0');
 
   return (
     <div className="min-h-screen p-8 bg-gray-50">
@@ -103,7 +115,7 @@ export default function SupplierBillingPage() {
             
             <div className="flex bg-white/20 rounded-xl p-4 backdrop-blur-sm border border-white/20">
               <div className="text-center px-4 border-r border-white/20">
-                <p className="text-3xl font-bold">{invoices.length}</p>
+                <p className="text-3xl font-bold">{summary.total}</p>
                 <p className="text-xs uppercase tracking-wider text-green-100 mt-1">Total</p>
               </div>
               <div className="text-center px-4">
@@ -114,9 +126,10 @@ export default function SupplierBillingPage() {
           </div>
         </div>
 
+        <div className="mb-4 rounded-xl bg-white p-4"><DateRangeFilter startDate={invoicePagination.startDate} endDate={invoicePagination.endDate} onStartDateChange={invoicePagination.setStartDate} onEndDateChange={invoicePagination.setEndDate} /></div>
         {/* Invoice List */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden printable-area">
-          {invoices.length === 0 ? (
+          {invoicePagination.filteredItems.length === 0 ? (
             <div className="text-center py-20">
               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -138,7 +151,7 @@ export default function SupplierBillingPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {invoices.map(invoice => (
+                  {invoicePagination.pagedItems.map(invoice => (
                     <tr key={invoice.id} className="hover:bg-gray-50/50 transition-colors group">
                       <td className="px-6 py-4">
                         <p className="font-semibold text-gray-900">{invoice.invoice_number}</p>
@@ -176,6 +189,7 @@ export default function SupplierBillingPage() {
                   ))}
                 </tbody>
               </table>
+              <ListPagination page={invoicePagination.page} totalPages={invoicePagination.totalPages} onPageChange={invoicePagination.setPage} />
             </div>
           )}
         </div>

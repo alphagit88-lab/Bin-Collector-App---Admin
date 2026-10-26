@@ -7,6 +7,7 @@ import { api, API_BASE_URL } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { GoogleMap, Marker, Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 import { compressImages } from '@/lib/imageCompression';
+import { normalizeCanadianPhone, validateCanadianPhone } from '@/lib/phoneValidation';
 
 interface ServiceCategory {
   id: number;
@@ -251,12 +252,19 @@ export default function CustomerOrderPage() {
     }
   };
 
+  const isBinSelectionComplete = (bin: { typeId: string; sizeId: string }) => {
+    if (!bin.typeId) return false;
+
+    const availableSizes = binSizesMap[Number(bin.typeId)];
+    return availableSizes !== undefined && (availableSizes.length === 0 || Boolean(bin.sizeId));
+  };
+
   const calculateEstimate = async () => {
     // Mirror mobile app: skip for 'service' type
     // For residential, dates are required. For commercial, dates are not required.
     if (
       category === 'service' ||
-      !selectedBins.some(b => b.typeId && b.sizeId) ||
+      !selectedBins.some(isBinSelectionComplete) ||
       !latitude || !longitude ||
       (category === 'residential' && (!startDate || !endDate))
     ) {
@@ -277,9 +285,9 @@ export default function CustomerOrderPage() {
         lat: latitude,
         lng: longitude,
         supplier_id: selectedSupplier ? parseInt(selectedSupplier) : undefined,
-        bins: selectedBins.filter(b => b.typeId && b.sizeId).map(b => ({
+        bins: selectedBins.filter(isBinSelectionComplete).map(b => ({
           bin_type_id: b.typeId,
-          bin_size_id: b.sizeId,
+          bin_size_id: b.sizeId || null,
           quantity: b.quantity || '1'
         }))
       };
@@ -316,6 +324,11 @@ export default function CustomerOrderPage() {
   }, [step, startDate, endDate, selectedBins, selectedServices, latitude, longitude, category, selectedSupplier]);
 
   const handleSubmit = async () => {
+    const phoneError = validateCanadianPhone(contactNumber);
+    if (phoneError) {
+      showToast(phoneError, 'error');
+      return;
+    }
     if (!latitude || !longitude) {
       showToast('Please complete all required fields', 'error');
       return;
@@ -340,7 +353,7 @@ export default function CustomerOrderPage() {
       formData.append('longitude', longitude.toString());
       if (startDate) formData.append('start_date', startDate);
       if (endDate) formData.append('end_date', endDate);
-      formData.append('contact_number', contactNumber);
+      formData.append('contact_number', normalizeCanadianPhone(contactNumber));
       formData.append('contact_email', contactEmail);
       formData.append('instructions', instructions);
       formData.append('payment_method', paymentMethod);
@@ -377,7 +390,7 @@ export default function CustomerOrderPage() {
             splitFormData.append('longitude', longitude.toString());
             if (startDate) splitFormData.append('start_date', startDate);
             if (endDate) splitFormData.append('end_date', endDate);
-            splitFormData.append('contact_number', contactNumber);
+            splitFormData.append('contact_number', normalizeCanadianPhone(contactNumber));
             splitFormData.append('contact_email', contactEmail);
             splitFormData.append('instructions', instructions);
             splitFormData.append('payment_method', paymentMethod);
@@ -400,9 +413,9 @@ export default function CustomerOrderPage() {
             router.push('/dashboard/customer/bookings');
           }
         } else {
-          const mappedBins = selectedBins.filter(b => b.typeId && b.sizeId).map(b => ({
+          const mappedBins = selectedBins.filter(isBinSelectionComplete).map(b => ({
             bin_type_id: b.typeId,
-            bin_size_id: b.sizeId,
+            bin_size_id: b.sizeId || null,
             quantity: b.quantity || '1'
           }));
           formData.append('bins', JSON.stringify(mappedBins));
@@ -441,7 +454,7 @@ export default function CustomerOrderPage() {
         showToast('Please select at least one service', 'error');
         return;
       }
-      if (category !== 'service' && (!selectedBins[0].typeId || !selectedBins[0].sizeId)) {
+      if (category !== 'service' && !selectedBins.some(isBinSelectionComplete)) {
         showToast('Please complete bin selection', 'error');
         return;
       }
@@ -617,7 +630,8 @@ export default function CustomerOrderPage() {
                   <div className="space-y-4">
                     {selectedBins.map((bin, index) => {
                       const typeIdNum = Number(bin.typeId);
-                      const sizes = binSizesMap[typeIdNum] || [];
+                      const sizes = binSizesMap[typeIdNum];
+                      const hasNoSizes = Boolean(bin.typeId) && sizes !== undefined && sizes.length === 0;
                       return (
                         <div key={index} className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
                           <div className="flex-1">
@@ -652,27 +666,29 @@ export default function CustomerOrderPage() {
                               })}
                             </select>
                           </div>
-                          <div className="flex-1">
-                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Bin Size</label>
-                            <select value={bin.sizeId} onChange={e => {
-                              const newBins = [...selectedBins];
-                              newBins[index].sizeId = e.target.value;
-                              setSelectedBins(newBins);
-                            }} disabled={!bin.typeId}
-                              className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50">
-                              <option value="">Select Size</option>
-                              {sizes.map((s: any) => {
-                                const isSizeDisabled = selectedBins.some((b, i) =>
-                                  i !== index && b.typeId === bin.typeId && b.sizeId === s.id.toString()
-                                );
-                                return (
-                                  <option key={s.id} value={s.id} disabled={isSizeDisabled}>
-                                    {s.size} {isSizeDisabled ? '(Already Selected)' : ''}
-                                  </option>
-                                );
-                              })}
-                            </select>
-                          </div>
+                          {!hasNoSizes && (
+                            <div className="flex-1">
+                              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Bin Size</label>
+                              <select value={bin.sizeId} onChange={e => {
+                                const newBins = [...selectedBins];
+                                newBins[index].sizeId = e.target.value;
+                                setSelectedBins(newBins);
+                              }} disabled={!bin.typeId || sizes === undefined}
+                                className="w-full p-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50">
+                                <option value="">{bin.typeId && sizes === undefined ? 'Loading Sizes...' : 'Select Size'}</option>
+                                {(sizes || []).map((s: any) => {
+                                  const isSizeDisabled = selectedBins.some((b, i) =>
+                                    i !== index && b.typeId === bin.typeId && b.sizeId === s.id.toString()
+                                  );
+                                  return (
+                                    <option key={s.id} value={s.id} disabled={isSizeDisabled}>
+                                      {s.size} {isSizeDisabled ? '(Already Selected)' : ''}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+                          )}
                           <div className="w-full sm:w-24">
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Qty</label>
                             <input type="number" min="1" value={bin.quantity || '1'} onChange={e => {

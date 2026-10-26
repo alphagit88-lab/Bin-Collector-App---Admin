@@ -8,6 +8,7 @@ import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
 import PasswordRequirements from '@/components/PasswordRequirements';
 import PasswordInput from '@/components/PasswordInput';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { normalizeCanadianPhone, validateCanadianPhone } from '@/lib/phoneValidation';
 
 const mapContainerStyle = {
   width: '100%',
@@ -103,13 +104,18 @@ export default function CustomerAccountPage() {
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    const phoneError = validateCanadianPhone(phone);
+    if (phoneError) {
+      showToast(phoneError, 'error');
+      return;
+    }
     if (!currentPassword.trim()) {
       showToast('Current password is required', 'error');
       return;
     }
     setLoadingProfile(true);
     try {
-      const response = await api.put('/auth/profile', { name, phone });
+      const response = await api.put('/auth/profile', { name, phone: normalizeCanadianPhone(phone) });
       if (response.success) {
         showToast('Profile updated successfully', 'success');
         refreshUser();

@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
 import PasswordRequirements from '@/components/PasswordRequirements';
 import PasswordInput from '@/components/PasswordInput';
+import { normalizeCanadianPhone, validateCanadianPhone } from '@/lib/phoneValidation';
 
 interface User {
   id: number;
@@ -115,6 +116,11 @@ export default function DriversPage() {
         showToast(response.message || 'Failed to update driver', 'error');
       }
     } else {
+      const phoneError = validateCanadianPhone(formData.phone);
+      if (phoneError) {
+        showToast(phoneError, 'error');
+        return;
+      }
       const passwordError = validatePassword(formData.password);
       if (passwordError) {
         showToast(passwordError, 'error');
@@ -123,7 +129,7 @@ export default function DriversPage() {
 
       const response = await api.post<{ user: User }>('/admin/users', {
         ...payload,
-        phone: formData.phone,
+        phone: normalizeCanadianPhone(formData.phone),
         password: normalizePassword(formData.password),
         role: 'driver',
       });
