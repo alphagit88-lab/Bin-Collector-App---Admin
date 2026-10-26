@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import PasswordInput from '@/components/PasswordInput';
 import { useToast } from '@/contexts/ToastContext';
 import Link from 'next/link';
+import ForgotPasswordModal from '@/components/ForgotPasswordModal';
 
 function LoginContent() {
   const [phone, setPhone] = useState('');
@@ -13,6 +14,7 @@ function LoginContent() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const { user, loading: authLoading, login, rememberedPhone } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
@@ -120,17 +122,22 @@ function LoginContent() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="rememberMe"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-[#10B981] focus:ring-[#10B981]"
-            />
-            <label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer">
-              Remember me
-            </label>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-[#10B981] focus:ring-[#10B981]"
+              />
+              <label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer">
+                Remember me
+              </label>
+            </div>
+            <button type="button" onClick={() => setForgotPasswordOpen(true)} className="text-sm font-medium text-[#10B981] hover:underline">
+              Forgot Password?
+            </button>
           </div>
 
           <button
@@ -151,6 +158,12 @@ function LoginContent() {
           </p>
         </div>
       </div>
+      <ForgotPasswordModal
+        open={forgotPasswordOpen}
+        initialIdentifier={phone}
+        onClose={() => setForgotPasswordOpen(false)}
+        onSuccess={message => showToast(message, 'success')}
+      />
     </main>
   );
 }

@@ -512,7 +512,10 @@ export default function CustomerOrderPage() {
                   { id: 'commercial', label: 'Commercial', icon: '🏢' },
                   { id: 'service', label: 'Other Service', icon: '🛠️' }
                 ].map(cat => (
-                  <button key={cat.id} onClick={() => setCategory(cat.id as any)}
+                  <button key={cat.id} onClick={() => {
+                    setCategory(cat.id as any);
+                    if (cat.id !== 'commercial') setSelectedSupplier('');
+                  }}
                     className={`p-5 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${category === cat.id ? 'border-green-500 bg-green-50' : 'border-gray-100 hover:border-green-200 bg-white'}`}>
                     <span className="text-3xl">{cat.icon}</span>
                     <span className={`font-semibold ${category === cat.id ? 'text-green-700' : 'text-gray-700'}`}>{cat.label}</span>
@@ -520,28 +523,29 @@ export default function CustomerOrderPage() {
                 ))}
               </div>
 
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Select Supplier (Optional)</h2>
-                <select
-                  value={selectedSupplier}
-                  onChange={e => {
-                    setSelectedSupplier(e.target.value);
-                    setBinSizesMap({});
-                    setSelectedBins([{ typeId: '', sizeId: '', quantity: '1' }]);
-                  }}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">Any Supplier (Lowest Price)</option>
-                  {suppliers.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {category === 'commercial' && (
                 <div className="mb-8">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">Select Supplier (Optional)</h2>
+                  <select
+                    value={selectedSupplier}
+                    onChange={e => {
+                      setSelectedSupplier(e.target.value);
+                      setBinSizesMap({});
+                      setSelectedBins([{ typeId: '', sizeId: '', quantity: '1' }]);
+                    }}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Any Supplier (Lowest Price)</option>
+                    {suppliers.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="mb-8">
                   <h2 className="text-xl font-bold text-gray-900 mb-4">Assign to Project (Optional)</h2>
                   <select
                     value={selectedProject}
@@ -566,8 +570,7 @@ export default function CustomerOrderPage() {
                     <option value="">No Project</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
-                </div>
-              )}
+              </div>
 
               <h2 className="text-xl font-bold text-gray-900 mb-4">Where do you need it?</h2>
               {isLoaded ? (
