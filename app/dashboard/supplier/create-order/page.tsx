@@ -569,7 +569,7 @@ export default function CreateOrderPage() {
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none ${selectedCustomerId ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
-                  placeholder="e.g. 0771234567"
+                  placeholder="+14165550123"
                   required
                   readOnly={!!selectedCustomerId}
                 />

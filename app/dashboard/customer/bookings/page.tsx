@@ -99,6 +99,7 @@ function BookingsContent() {
   const [cancelling, setCancelling] = useState(false);
   const [mapMarkerSelected, setMapMarkerSelected] = useState<Booking | null>(null);
   const [payingBooking, setPayingBooking] = useState<Booking | null>(null);
+  const [failedAttachments, setFailedAttachments] = useState<Set<string>>(() => new Set());
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editBooking, setEditBooking] = useState<Booking | null>(null);
@@ -516,11 +517,26 @@ function BookingsContent() {
                 <div className="pt-2">
                   <p className="text-gray-500 text-sm mb-2">Attachments ({getAttachments(selectedBooking).length})</p>
                   <div className="flex gap-2 flex-wrap">
-                    {getAttachments(selectedBooking).map((img, i) => (
-                      <a key={i} href={`${API_BASE_URL}${img}`} target="_blank" rel="noreferrer">
-                        <img src={`${API_BASE_URL}${img}`} alt="" className="h-20 w-20 object-cover rounded-xl border-2 border-gray-100" />
-                      </a>
-                    ))}
+                    {getAttachments(selectedBooking).map((img, i) => {
+                      const attachmentUrl = `${API_BASE_URL}${img}`;
+                      if (failedAttachments.has(attachmentUrl)) {
+                        return (
+                          <div key={i} className="h-20 w-20 rounded-xl border-2 border-gray-100 bg-gray-50 text-gray-400 text-[10px] text-center flex items-center justify-center px-2">
+                            Attachment unavailable
+                          </div>
+                        );
+                      }
+                      return (
+                        <a key={i} href={attachmentUrl} target="_blank" rel="noreferrer">
+                          <img
+                            src={attachmentUrl}
+                            alt="Attachment"
+                            className="h-20 w-20 object-cover rounded-xl border-2 border-gray-100"
+                            onError={() => setFailedAttachments(previous => new Set(previous).add(attachmentUrl))}
+                          />
+                        </a>
+                      );
+                    })}
                   </div>
                 </div>
               )}

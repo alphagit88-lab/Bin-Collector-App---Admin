@@ -208,7 +208,7 @@ export default function DriversPage() {
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g. 0771234567"
+                    placeholder="+14165550123"
                     className="w-full px-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 outline-none"
                     required
                   />

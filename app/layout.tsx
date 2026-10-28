@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { SocketProvider } from "@/contexts/SocketContext";
 import FontAwesomeLoader from "@/components/FontAwesomeLoader";
+import DocumentTitle from "@/components/DocumentTitle";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -13,8 +14,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Bin Drop - Admin Dashboard",
-  description: "Waste Management Platform - Admin Dashboard",
+  title: "BinDrop",
+  description: "BinDrop waste management platform",
 };
 
 export default function RootLayout({
@@ -28,6 +29,7 @@ export default function RootLayout({
         <FontAwesomeLoader />
         <ToastProvider>
           <AuthProvider>
+            <DocumentTitle />
             <SocketProvider>
               {children}
             </SocketProvider>

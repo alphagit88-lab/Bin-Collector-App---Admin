@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/contexts/ToastContext';
+import { useSocket } from '@/contexts/SocketContext';
 import { api, API_BASE_URL } from '@/lib/api';
 import Link from 'next/link';
 
@@ -96,6 +97,7 @@ const formatDateRange = (start: string, end: string) => {
 
 function TrackingContent() {
   const { showToast } = useToast();
+  const { socket } = useSocket();
   const searchParams = useSearchParams();
   const requestIdParam = searchParams.get('id');
 
@@ -107,20 +109,25 @@ function TrackingContent() {
   const [cancelling, setCancelling] = useState(false);
   const [markingReady, setMarkingReady] = useState<number | null>(null);
 
-  const fetchRequests = useCallback(async () => {
-    setLoading(true);
+  const fetchRequests = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await api.get<{ requests: ServiceRequest[] }>('/bookings/my-requests');
       if (res.success && res.data) {
         const all = res.data.requests || [];
         setRequests(all);
-        if (requestIdParam) {
-          const target = all.find(r => r.id === parseInt(requestIdParam));
-          setSelectedRequest(target || all[0] || null);
-        } else {
+        setSelectedRequest(current => {
+          if (requestIdParam) {
+            const target = all.find(r => r.id === parseInt(requestIdParam));
+            return target || all[0] || null;
+          }
+          if (current) {
+            const updatedSelection = all.find(r => r.id === current.id);
+            if (updatedSelection) return updatedSelection;
+          }
           const active = all.find(r => !['completed', 'cancelled'].includes(r.status.toLowerCase()));
-          setSelectedRequest(active || all[0] || null);
-        }
+          return active || all[0] || null;
+        });
       }
     } catch (e) {
       showToast('Failed to load orders', 'error');
@@ -130,6 +137,22 @@ function TrackingContent() {
   }, [requestIdParam]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleStatusUpdate = () => {
+      fetchRequests(false);
+    };
+
+    socket.on('status_update', handleStatusUpdate);
+    socket.on('request_status_updated', handleStatusUpdate);
+
+    return () => {
+      socket.off('status_update', handleStatusUpdate);
+      socket.off('request_status_updated', handleStatusUpdate);
+    };
+  }, [socket, fetchRequests]);
 
   const filtered = requests.filter(r => {
     const q = searchQuery.toLowerCase();
