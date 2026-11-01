@@ -46,6 +46,7 @@ interface Customer {
   id: number;
   name: string;
   phone: string;
+  email?: string;
 }
 
 const GOOGLE_LIBRARIES: any[] = ["places"];
@@ -61,6 +62,7 @@ export default function CreateOrderPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [serviceCategory, setServiceCategory] = useState('residential');
   const [location, setLocation] = useState('');
   const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
@@ -99,11 +101,13 @@ export default function CreateOrderPage() {
     if (id === '') {
       setCustomerName('');
       setCustomerPhone('');
+      setCustomerEmail('');
     } else {
       const selected = customers.find(c => c.id.toString() === id);
       if (selected) {
         setCustomerName(selected.name);
         setCustomerPhone(selected.phone);
+        setCustomerEmail(selected.email || '');
       }
     }
   };
@@ -440,12 +444,17 @@ export default function CreateOrderPage() {
       showToast(phoneError, 'error');
       return;
     }
+    if (customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim())) {
+      showToast('Enter a valid customer email address', 'error');
+      return;
+    }
 
     setLoading(true);
     try {
       const formData = new FormData();
       formData.append('customer_name', customerName);
       formData.append('customer_phone', normalizeCanadianPhone(customerPhone));
+      if (customerEmail.trim()) formData.append('customer_email', customerEmail.trim().toLowerCase());
       formData.append('service_category', serviceCategory);
       formData.append('location', location);
       formData.append('start_date', startDate);
@@ -536,7 +545,7 @@ export default function CreateOrderPage() {
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-green-600"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
               Customer Details
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Select Customer</label>
                 <select
@@ -571,6 +580,17 @@ export default function CreateOrderPage() {
                   className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none ${selectedCustomerId ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                   placeholder="+14165550123"
                   required
+                  readOnly={!!selectedCustomerId}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address (Optional)</label>
+                <input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none ${selectedCustomerId ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                  placeholder="customer@example.com"
                   readOnly={!!selectedCustomerId}
                 />
               </div>
