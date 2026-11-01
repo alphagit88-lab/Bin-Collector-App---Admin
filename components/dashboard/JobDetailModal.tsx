@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useToast } from '@/contexts/ToastContext';
+import { useSocket } from '@/contexts/SocketContext';
 import { api, API_BASE_URL } from '@/lib/api';
 import { compressImage } from '@/lib/imageCompression';
 
@@ -93,6 +94,7 @@ const statusSteps = [
 
 export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDetailModalProps) {
   const { showToast } = useToast();
+  const { socket } = useSocket();
   const [job, setJob] = useState<JobDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -116,8 +118,21 @@ export default function JobDetailModal({ jobId, onClose, onJobUpdated }: JobDeta
     fetchAvailableBins();
   }, [jobId]);
 
-  const fetchJobDetails = async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleStatusUpdate = () => {
+      fetchJobDetails(false);
+    };
+
+    socket.on('status_update', handleStatusUpdate);
+    return () => {
+      socket.off('status_update', handleStatusUpdate);
+    };
+  }, [socket, jobId]);
+
+  const fetchJobDetails = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const response = await api.get<{ request: JobDetail }>(`/bookings/${jobId}`);
       if (response.success && response.data?.request) {

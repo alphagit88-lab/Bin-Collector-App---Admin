@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useToast } from '@/contexts/ToastContext';
+import { useSocket } from '@/contexts/SocketContext';
 import { api } from '@/lib/api';
 import JobDetailModal from '@/components/dashboard/JobDetailModal';
 import { useSearchParams } from 'next/navigation';
@@ -52,6 +53,7 @@ interface ServiceRequest {
 
 function SupplierJobsContent() {
   const { showToast } = useToast();
+  const { socket } = useSocket();
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get('status') || 'all';
 
@@ -76,12 +78,8 @@ function SupplierJobsContent() {
     libraries: GOOGLE_LIBRARIES
   });
 
-  useEffect(() => {
-    fetchBookings();
-  }, [filterStatus, filterCustomer, searchTerm, filterStartDate, filterEndDate, bookingPagination.page]);
-
-  const fetchBookings = async () => {
-    setLoading(true);
+  const fetchBookings = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const params = new URLSearchParams({ page: bookingPagination.page.toString(), limit: '10' });
       if (filterStatus !== 'all') params.set('status', filterStatus);
@@ -102,7 +100,24 @@ function SupplierJobsContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterStatus, filterCustomer, searchTerm, filterStartDate, filterEndDate, bookingPagination.page]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleStatusUpdate = () => {
+      fetchBookings(false);
+    };
+
+    socket.on('status_update', handleStatusUpdate);
+    return () => {
+      socket.off('status_update', handleStatusUpdate);
+    };
+  }, [socket, fetchBookings]);
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
