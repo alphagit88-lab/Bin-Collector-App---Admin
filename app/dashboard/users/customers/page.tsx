@@ -18,6 +18,7 @@ interface Customer {
   phone: string;
   email?: string;
   role: 'customer';
+  isActive: boolean;
   canViewBilling: boolean;
   deleteRequest?: boolean;
   created_at: string;
@@ -108,6 +109,21 @@ export default function CustomersPage() {
     }
   };
 
+  const handleActivation = async (customer: Customer) => {
+    const nextActive = !customer.isActive;
+    if (!confirm(`Are you sure you want to ${nextActive ? 'activate' : 'deactivate'} this customer?`)) return;
+
+    const response = await api.put<{ user: Customer }>(`/admin/users/${customer.id}`, {
+      isActive: nextActive,
+    });
+    if (response.success) {
+      showToast(`Customer ${nextActive ? 'activated' : 'deactivated'} successfully`, 'success');
+      fetchCustomers();
+    } else {
+      showToast(response.message || 'Failed to update customer status', 'error');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -186,6 +202,7 @@ export default function CustomersPage() {
                 <th>Name</th>
                 <th>Phone</th>
                 <th>Email</th>
+                <th>Status</th>
                 <th>Billing Access</th>
                 <th>Delete Request</th>
                 <th>Created</th>
@@ -195,7 +212,7 @@ export default function CustomersPage() {
             <tbody>
               {customerPagination.filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>
                     No customers found
                   </td>
                 </tr>
@@ -205,6 +222,11 @@ export default function CustomersPage() {
                     <td style={{ fontWeight: 500 }}>{customer.name}</td>
                     <td>{customer.phone}</td>
                     <td>{customer.email || '-'}</td>
+                    <td>
+                      <span style={{ color: customer.isActive ? '#059669' : '#D97706', fontWeight: 600 }}>
+                        {customer.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
                     <td>
                       <div 
                         onClick={() => handleToggleBilling(customer)}
@@ -245,6 +267,12 @@ export default function CustomersPage() {
                           onClick={() => handleEdit(customer)}
                         >
                           Edit
+                        </button>
+                        <button
+                          className={`btn btn-sm cursor-pointer ${customer.isActive ? 'btn-outline' : 'btn-primary'}`}
+                          onClick={() => handleActivation(customer)}
+                        >
+                          {customer.isActive ? 'Deactivate' : 'Activate'}
                         </button>
                         <button
                           className="btn btn-danger btn-sm cursor-pointer"

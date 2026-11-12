@@ -17,6 +17,7 @@ interface Supplier {
   role: 'supplier';
   supplierType?: 'commercial' | 'residential' | 'commercial_residential' | null;
   deleteRequest?: boolean;
+  isActive: boolean;
   created_at: string;
 }
 
@@ -77,6 +78,21 @@ export default function SuppliersPage() {
       fetchSuppliers();
     } else {
       showToast(response.message || 'Failed to delete supplier', 'error');
+    }
+  };
+
+  const handleActivation = async (supplier: Supplier) => {
+    const nextActive = !supplier.isActive;
+    if (!confirm(`Are you sure you want to ${nextActive ? 'activate' : 'deactivate'} this supplier?`)) return;
+
+    const response = await api.put<{ user: Supplier }>(`/admin/users/${supplier.id}`, {
+      isActive: nextActive,
+    });
+    if (response.success) {
+      showToast(`Supplier ${nextActive ? 'activated' : 'deactivated'} successfully`, 'success');
+      fetchSuppliers();
+    } else {
+      showToast(response.message || 'Failed to update supplier status', 'error');
     }
   };
 
@@ -160,6 +176,7 @@ export default function SuppliersPage() {
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Type</th>
+                <th>Status</th>
                 <th>Delete Request</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -168,7 +185,7 @@ export default function SuppliersPage() {
             <tbody>
               {suppliers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>
                     No suppliers found
                   </td>
                 </tr>
@@ -187,6 +204,11 @@ export default function SuppliersPage() {
                         ? 'Commercial / Residential'
                         : '-'}
                     </td>
+                    <td>
+                      <span style={{ color: supplier.isActive ? '#059669' : '#D97706', fontWeight: 600 }}>
+                        {supplier.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
                     <td style={{ textAlign: 'center' }}>
                       {supplier.deleteRequest ? (
                         <span style={{ color: '#EF4444', fontWeight: 600 }}>Requested</span>
@@ -197,6 +219,12 @@ export default function SuppliersPage() {
                     <td>{new Date(supplier.created_at).toLocaleDateString()}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          className={`btn btn-sm cursor-pointer ${supplier.isActive ? 'btn-outline' : 'btn-primary'}`}
+                          onClick={() => handleActivation(supplier)}
+                        >
+                          {supplier.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
                         <button
                           className="btn btn-outline btn-sm cursor-pointer"
                           onClick={() => handleEdit(supplier)}

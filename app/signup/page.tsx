@@ -88,7 +88,11 @@ function SignupContent() {
     setLoading(false);
 
     if (result.success) {
-      showToast('Account created successfully!', 'success');
+      showToast(result.message || 'Account created successfully!', 'success');
+      if (role === 'supplier') {
+        router.push('/login');
+        return;
+      }
       if (returnUrl) {
         router.push(returnUrl);
       } else {

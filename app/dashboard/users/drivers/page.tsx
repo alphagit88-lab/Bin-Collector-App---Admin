@@ -15,6 +15,7 @@ interface User {
   phone: string;
   email?: string;
   role: 'driver';
+  isActive: boolean;
   supplierId?: number;
   supplier_name?: string;
   deleteRequest?: boolean;
@@ -93,6 +94,21 @@ export default function DriversPage() {
       fetchData();
     } else {
       showToast(response.message || 'Failed to delete driver', 'error');
+    }
+  };
+
+  const handleActivation = async (driver: User) => {
+    const nextActive = !driver.isActive;
+    if (!confirm(`Are you sure you want to ${nextActive ? 'activate' : 'deactivate'} this driver?`)) return;
+
+    const response = await api.put<{ user: User }>(`/admin/users/${driver.id}`, {
+      isActive: nextActive,
+    });
+    if (response.success) {
+      showToast(`Driver ${nextActive ? 'activated' : 'deactivated'} successfully`, 'success');
+      fetchData();
+    } else {
+      showToast(response.message || 'Failed to update driver status', 'error');
     }
   };
 
@@ -175,6 +191,7 @@ export default function DriversPage() {
                 <th>Name</th>
                 <th>Phone</th>
                 <th>Email</th>
+                <th>Status</th>
                 <th>Assigned Supplier</th>
                 <th>Delete Request</th>
                 <th>Created</th>
@@ -184,7 +201,7 @@ export default function DriversPage() {
             <tbody>
               {drivers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>
                     No drivers found
                   </td>
                 </tr>
@@ -194,6 +211,11 @@ export default function DriversPage() {
                     <td style={{ fontWeight: 500 }}>{driver.name}</td>
                     <td>{driver.phone}</td>
                     <td>{driver.email || '-'}</td>
+                    <td>
+                      <span style={{ color: driver.isActive ? '#059669' : '#D97706', fontWeight: 600 }}>
+                        {driver.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
                     <td>
                         {suppliers.find(s => s.id === driver.supplierId)?.name || <span className="text-gray-400">Not Assigned</span>}
                     </td>
@@ -212,6 +234,12 @@ export default function DriversPage() {
                           onClick={() => handleEdit(driver)}
                         >
                           Edit
+                        </button>
+                        <button
+                          className={`btn btn-sm cursor-pointer ${driver.isActive ? 'btn-outline' : 'btn-primary'}`}
+                          onClick={() => handleActivation(driver)}
+                        >
+                          {driver.isActive ? 'Deactivate' : 'Activate'}
                         </button>
                         <button
                           className="btn btn-danger btn-sm cursor-pointer"

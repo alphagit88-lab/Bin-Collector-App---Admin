@@ -15,6 +15,7 @@ interface User {
   supplierId?: number;
   canViewBilling?: boolean;
   profilePhoto?: string;
+  isActive?: boolean;
 }
 
 interface AuthContextType {
@@ -132,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const passwordError = validatePassword(password);
       if (passwordError) return { success: false, message: passwordError };
 
-      const response = await api.post<{ user: User; token: string }>('/auth/signup', {
+      const response = await api.post<{ user: User; token?: string; pendingApproval?: boolean }>('/auth/signup', {
         name,
         phone,
         email,
@@ -142,6 +143,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (response.success && response.data) {
+        if (!response.data.token) {
+          return { success: true, message: response.message };
+        }
         setUser(response.data.user);
         setToken(response.data.token);
         localStorage.setItem('token', response.data.token);

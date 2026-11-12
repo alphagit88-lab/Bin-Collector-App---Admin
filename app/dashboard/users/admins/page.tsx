@@ -15,6 +15,7 @@ interface Admin {
   phone: string;
   email?: string;
   role: 'admin';
+  isActive: boolean;
   created_at: string;
 }
 
@@ -73,6 +74,21 @@ export default function AdminsPage() {
       fetchAdmins();
     } else {
       showToast(response.message || 'Failed to delete admin', 'error');
+    }
+  };
+
+  const handleActivation = async (admin: Admin) => {
+    const nextActive = !admin.isActive;
+    if (!confirm(`Are you sure you want to ${nextActive ? 'activate' : 'deactivate'} this admin?`)) return;
+
+    const response = await api.put<{ user: Admin }>(`/admin/users/${admin.id}`, {
+      isActive: nextActive,
+    });
+    if (response.success) {
+      showToast(`Admin ${nextActive ? 'activated' : 'deactivated'} successfully`, 'success');
+      fetchAdmins();
+    } else {
+      showToast(response.message || 'Failed to update admin status', 'error');
     }
   };
 
@@ -152,6 +168,7 @@ export default function AdminsPage() {
                 <th>Name</th>
                 <th>Phone</th>
                 <th>Email</th>
+                <th>Status</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -159,7 +176,7 @@ export default function AdminsPage() {
             <tbody>
               {admins.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>
                     No admins found
                   </td>
                 </tr>
@@ -169,6 +186,11 @@ export default function AdminsPage() {
                     <td style={{ fontWeight: 500 }}>{admin.name}</td>
                     <td>{admin.phone}</td>
                     <td>{admin.email || '-'}</td>
+                    <td>
+                      <span style={{ color: admin.isActive ? '#059669' : '#D97706', fontWeight: 600 }}>
+                        {admin.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
                     <td>{new Date(admin.created_at).toLocaleDateString()}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -177,6 +199,13 @@ export default function AdminsPage() {
                           onClick={() => handleEdit(admin)}
                         >
                           Edit
+                        </button>
+                        <button
+                          className={`btn btn-sm cursor-pointer ${admin.isActive ? 'btn-outline' : 'btn-primary'}`}
+                          onClick={() => handleActivation(admin)}
+                          disabled={admin.id === currentUser?.id}
+                        >
+                          {admin.isActive ? 'Deactivate' : 'Activate'}
                         </button>
                         <button
                           className="btn btn-danger btn-sm cursor-pointer"
