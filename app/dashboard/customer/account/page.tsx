@@ -109,10 +109,6 @@ export default function CustomerAccountPage() {
       showToast(phoneError, 'error');
       return;
     }
-    if (!currentPassword.trim()) {
-      showToast('Current password is required', 'error');
-      return;
-    }
     setLoadingProfile(true);
     try {
       const response = await api.put('/auth/profile', { name, phone: normalizeCanadianPhone(phone) });
@@ -131,6 +127,10 @@ export default function CustomerAccountPage() {
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentPassword.trim()) {
+      showToast('Current password is required', 'error');
+      return;
+    }
     const normalizedPassword = normalizePassword(newPassword);
     const passwordError = validatePassword(newPassword);
     if (passwordError) {

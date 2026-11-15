@@ -106,10 +106,6 @@ export default function AccountSettingsPage() {
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentPassword.trim()) {
-      showToast('Current password is required', 'error');
-      return;
-    }
     setLoadingProfile(true);
     try {
       const response = await api.put('/auth/profile', { name, email, phone });
@@ -128,6 +124,10 @@ export default function AccountSettingsPage() {
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentPassword.trim()) {
+      showToast('Current password is required', 'error');
+      return;
+    }
     const normalizedPassword = normalizePassword(newPassword);
     const passwordError = validatePassword(newPassword);
     if (passwordError) {
