@@ -179,11 +179,10 @@ function SignupContent() {
               <button
                 type="button"
                 onClick={() => setRole('customer')}
-                className={`h-10 rounded-md border text-sm font-medium transition-colors cursor-pointer ${
-                  role === 'customer'
+                className={`h-10 rounded-md border text-sm font-medium transition-colors cursor-pointer ${role === 'customer'
                     ? 'bg-[#10B981] text-white border-[#10B981]'
                     : 'bg-white text-black border-gray-300 hover:border-gray-400'
-                }`}
+                  }`}
               >
                 Customer
               </button>
@@ -195,11 +194,10 @@ function SignupContent() {
                     setSupplierType('commercial');
                   }
                 }}
-                className={`h-10 rounded-md border text-sm font-medium transition-colors cursor-pointer ${
-                  role === 'supplier'
+                className={`h-10 rounded-md border text-sm font-medium transition-colors cursor-pointer ${role === 'supplier'
                     ? 'bg-[#10B981] text-white border-[#10B981]'
                     : 'bg-white text-black border-gray-300 hover:border-gray-400'
-                }`}
+                  }`}
               >
                 Supplier
               </button>
@@ -219,33 +217,30 @@ function SignupContent() {
               <button
                 type="button"
                 onClick={() => setSupplierType('commercial')}
-                className={`h-10 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
-                  supplierType === 'commercial'
+                className={`h-10 rounded-md border text-xs font-medium transition-colors cursor-pointer ${supplierType === 'commercial'
                     ? 'bg-[#10B981] text-white border-[#10B981]'
                     : 'bg-white text-black border-gray-300 hover:border-gray-400'
-                }`}
+                  }`}
               >
                 Commercial
               </button>
               <button
                 type="button"
                 onClick={() => setSupplierType('residential')}
-                className={`h-10 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
-                  supplierType === 'residential'
+                className={`h-10 rounded-md border text-xs font-medium transition-colors cursor-pointer ${supplierType === 'residential'
                     ? 'bg-[#10B981] text-white border-[#10B981]'
                     : 'bg-white text-black border-gray-300 hover:border-gray-400'
-                }`}
+                  }`}
               >
                 Residential
               </button>
               <button
                 type="button"
                 onClick={() => setSupplierType('commercial_residential')}
-                className={`h-10 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
-                  supplierType === 'commercial_residential'
+                className={`h-10 rounded-md border text-xs font-medium transition-colors cursor-pointer ${supplierType === 'commercial_residential'
                     ? 'bg-[#10B981] text-white border-[#10B981]'
                     : 'bg-white text-black border-gray-300 hover:border-gray-400'
-                }`}
+                  }`}
                 style={{ whiteSpace: 'normal', wordWrap: 'break-word', lineHeight: '1.2' }}
               >
                 Commercial / Residential
@@ -311,7 +306,7 @@ function SignupContent() {
       <main className="min-h-screen py-6 sm:py-8 flex items-center justify-center px-4 sm:px-6 bg-gray-50">
         <div className="w-full max-w-[840px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden flex flex-col lg:flex-row lg:h-[590px] lg:max-h-[88vh]">
           {/* Left Column: Fixed / Static Marketing Info */}
-          <div className="w-full lg:w-[380px] bg-[#f4fbf9] p-6 sm:p-8 lg:p-9 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-[#d4ece6] shrink-0 lg:h-full lg:overflow-hidden select-none">
+          <div className="w-full lg:w-[400px] bg-[#f4fbf9] p-6 sm:p-8 lg:p-9 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-[#d4ece6] shrink-0 lg:h-full lg:overflow-hidden select-none">
             <div className="w-full">
               <div className="flex items-center gap-2.5 mb-6">
                 <div className="w-1 h-7 bg-[#4fb7af] rounded-full shrink-0" />
