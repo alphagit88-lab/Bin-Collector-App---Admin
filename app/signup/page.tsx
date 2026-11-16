@@ -180,8 +180,8 @@ function SignupContent() {
                 type="button"
                 onClick={() => setRole('customer')}
                 className={`h-10 rounded-md border text-sm font-medium transition-colors cursor-pointer ${role === 'customer'
-                    ? 'bg-[#10B981] text-white border-[#10B981]'
-                    : 'bg-white text-black border-gray-300 hover:border-gray-400'
+                  ? 'bg-[#10B981] text-white border-[#10B981]'
+                  : 'bg-white text-black border-gray-300 hover:border-gray-400'
                   }`}
               >
                 Customer
@@ -195,8 +195,8 @@ function SignupContent() {
                   }
                 }}
                 className={`h-10 rounded-md border text-sm font-medium transition-colors cursor-pointer ${role === 'supplier'
-                    ? 'bg-[#10B981] text-white border-[#10B981]'
-                    : 'bg-white text-black border-gray-300 hover:border-gray-400'
+                  ? 'bg-[#10B981] text-white border-[#10B981]'
+                  : 'bg-white text-black border-gray-300 hover:border-gray-400'
                   }`}
               >
                 Supplier
@@ -218,8 +218,8 @@ function SignupContent() {
                 type="button"
                 onClick={() => setSupplierType('commercial')}
                 className={`h-10 rounded-md border text-xs font-medium transition-colors cursor-pointer ${supplierType === 'commercial'
-                    ? 'bg-[#10B981] text-white border-[#10B981]'
-                    : 'bg-white text-black border-gray-300 hover:border-gray-400'
+                  ? 'bg-[#10B981] text-white border-[#10B981]'
+                  : 'bg-white text-black border-gray-300 hover:border-gray-400'
                   }`}
               >
                 Commercial
@@ -228,8 +228,8 @@ function SignupContent() {
                 type="button"
                 onClick={() => setSupplierType('residential')}
                 className={`h-10 rounded-md border text-xs font-medium transition-colors cursor-pointer ${supplierType === 'residential'
-                    ? 'bg-[#10B981] text-white border-[#10B981]'
-                    : 'bg-white text-black border-gray-300 hover:border-gray-400'
+                  ? 'bg-[#10B981] text-white border-[#10B981]'
+                  : 'bg-white text-black border-gray-300 hover:border-gray-400'
                   }`}
               >
                 Residential
@@ -238,8 +238,8 @@ function SignupContent() {
                 type="button"
                 onClick={() => setSupplierType('commercial_residential')}
                 className={`h-10 rounded-md border text-xs font-medium transition-colors cursor-pointer ${supplierType === 'commercial_residential'
-                    ? 'bg-[#10B981] text-white border-[#10B981]'
-                    : 'bg-white text-black border-gray-300 hover:border-gray-400'
+                  ? 'bg-[#10B981] text-white border-[#10B981]'
+                  : 'bg-white text-black border-gray-300 hover:border-gray-400'
                   }`}
                 style={{ whiteSpace: 'normal', wordWrap: 'break-word', lineHeight: '1.2' }}
               >
@@ -326,7 +326,7 @@ function SignupContent() {
           </div>
 
           {/* Right Column: Scrollable Signup Form sized to match normal signup */}
-          <div className="w-full lg:w-[460px] flex-1 lg:h-full lg:overflow-y-auto p-6 sm:p-8 flex flex-col justify-start sleek-scroll">
+          <div className="w-full lg:w-[460px] flex-1 lg:h-full lg:overflow-y-auto p-6 sm:p-8 flex flex-col justify-start">
             <div className="w-full max-w-sm mx-auto">
               <div className="mb-6 text-center">
                 <h2 className="text-2xl sm:text-3xl font-bold text-black mb-1">Sign Up</h2>
