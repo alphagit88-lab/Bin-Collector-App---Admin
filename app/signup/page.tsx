@@ -120,14 +120,14 @@ function SignupContent() {
   const formContent = (
     <>
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="mb-5 p-3.5 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-xs sm:text-sm text-red-600">{error}</p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-black mb-2">
+          <label htmlFor="name" className="block text-xs sm:text-sm font-medium text-black mb-1.5">
             Full Name <span className="text-red-500">*</span>
           </label>
           <input
@@ -142,7 +142,7 @@ function SignupContent() {
         </div>
 
         <div>
-          <label htmlFor="phone" className="block text-sm font-medium text-black mb-2">
+          <label htmlFor="phone" className="block text-xs sm:text-sm font-medium text-black mb-1.5">
             Phone Number <span className="text-red-500">*</span>
           </label>
           <input
@@ -157,7 +157,7 @@ function SignupContent() {
         </div>
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-black mb-2">
+          <label htmlFor="email" className="block text-xs sm:text-sm font-medium text-black mb-1.5">
             Email Address <span className="text-gray-500 text-xs">(Optional)</span>
           </label>
           <input
@@ -172,7 +172,7 @@ function SignupContent() {
 
         {!isSupplierParam && (
           <div>
-            <label className="block text-sm font-medium text-black mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-black mb-1.5">
               Role <span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-2 gap-3">
@@ -204,7 +204,7 @@ function SignupContent() {
                 Supplier
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 mt-1.5">
               Admin accounts can only be created by existing administrators
             </p>
           </div>
@@ -212,10 +212,10 @@ function SignupContent() {
 
         {role === 'supplier' && (
           <div>
-            <label className="block text-sm font-medium text-black mb-2">
+            <label className="block text-xs sm:text-sm font-medium text-black mb-1.5">
               Supplier Type <span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={() => setSupplierType('commercial')}
@@ -255,7 +255,7 @@ function SignupContent() {
         )}
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-black mb-2">
+          <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-black mb-1.5">
             Password <span className="text-red-500">*</span>
           </label>
           <PasswordRequirements password={password} />
@@ -271,7 +271,7 @@ function SignupContent() {
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-black mb-2">
+          <label htmlFor="confirmPassword" className="block text-xs sm:text-sm font-medium text-black mb-1.5">
             Confirm Password <span className="text-red-500">*</span>
           </label>
           <PasswordInput
@@ -289,14 +289,14 @@ function SignupContent() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full h-10 rounded-md bg-[#10B981] text-white font-medium hover:bg-[#059669] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          className="w-full h-10 rounded-md bg-[#10B981] text-white font-medium hover:bg-[#059669] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm"
         >
           {loading ? 'Creating account...' : 'Sign Up'}
         </button>
       </form>
 
-      <div className="mt-6 text-center">
-        <p className="text-sm text-gray-600">
+      <div className="mt-5 text-center">
+        <p className="text-xs sm:text-sm text-gray-600">
           Already have an account?{' '}
           <Link href={returnUrl ? `/login?returnUrl=${encodeURIComponent(returnUrl)}` : "/login"} className="text-[#10B981] font-medium hover:underline">
             Sign in
@@ -308,34 +308,34 @@ function SignupContent() {
 
   if (isSupplierParam) {
     return (
-      <main className="min-h-screen py-8 lg:py-12 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-gray-50">
-        <div className="max-w-[1140px] w-full bg-white rounded-3xl shadow-xl border border-gray-200 overflow-hidden flex flex-col lg:flex-row lg:h-[840px] lg:max-h-[92vh]">
+      <main className="min-h-screen py-6 sm:py-8 flex items-center justify-center px-4 sm:px-6 bg-gray-50">
+        <div className="w-full max-w-[840px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden flex flex-col lg:flex-row lg:h-[590px] lg:max-h-[88vh]">
           {/* Left Column: Fixed / Static Marketing Info */}
-          <div className="lg:w-[48%] bg-[#f4fbf9] p-8 sm:p-12 lg:p-14 xl:p-16 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-[#d4ece6] shrink-0 lg:h-full lg:overflow-hidden select-none">
-            <div className="max-w-md mx-auto lg:mx-0">
-              <div className="flex items-center gap-3 mb-8 sm:mb-10">
-                <div className="w-1.5 h-9 bg-[#4fb7af] rounded-full shrink-0" />
-                <div className="text-xs sm:text-sm font-bold tracking-wider text-[#148e7a] uppercase leading-snug">
+          <div className="w-full lg:w-[380px] bg-[#f4fbf9] p-6 sm:p-8 lg:p-9 flex flex-col justify-center border-b lg:border-b-0 lg:border-r border-[#d4ece6] shrink-0 lg:h-full lg:overflow-hidden select-none">
+            <div className="w-full">
+              <div className="flex items-center gap-2.5 mb-6">
+                <div className="w-1 h-7 bg-[#4fb7af] rounded-full shrink-0" />
+                <div className="text-[11px] sm:text-xs font-bold tracking-wider text-[#148e7a] uppercase leading-tight">
                   Operations Software for<br />Rental Businesses
                 </div>
               </div>
-              <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-extrabold text-[#00152c] leading-[1.15] tracking-tight mb-6">
+              <h1 className="text-2xl sm:text-[28px] font-bold text-[#00152c] leading-tight tracking-tight mb-4">
                 Run Your<br />
                 Operations for Just<br />
                 <span className="text-[#239085]">$50/User/Month.</span>
               </h1>
-              <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
+              <p className="text-slate-500 text-xs sm:text-sm leading-relaxed">
                 Manage bookings, dispatch drivers, track equipment, organize customers, and simplify billing—all from one easy-to-use platform.
               </p>
             </div>
           </div>
 
-          {/* Right Column: Scrollable Signup Form */}
-          <div className="lg:w-[52%] flex-1 lg:h-full lg:overflow-y-auto p-6 sm:p-10 lg:p-12 flex flex-col justify-start">
-            <div className="max-w-md w-full mx-auto my-auto py-2">
-              <div className="mb-8 text-center">
-                <h2 className="text-3xl sm:text-4xl font-bold text-black mb-2">Sign Up</h2>
-                <p className="text-gray-600 text-sm">
+          {/* Right Column: Scrollable Signup Form sized to match normal signup */}
+          <div className="w-full lg:w-[460px] flex-1 lg:h-full lg:overflow-y-auto p-6 sm:p-8 flex flex-col justify-start sleek-scroll">
+            <div className="w-full max-w-sm mx-auto">
+              <div className="mb-6 text-center">
+                <h2 className="text-2xl sm:text-3xl font-bold text-black mb-1">Sign Up</h2>
+                <p className="text-gray-500 text-xs sm:text-sm">
                   Create your Bin Drop account
                 </p>
               </div>
@@ -350,8 +350,8 @@ function SignupContent() {
   return (
     <main className="py-20 min-h-screen flex items-center justify-center px-6 bg-gray-50">
       <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-sm border border-gray-200">
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-black mb-2">Sign Up</h1>
+        <div className="mb-6 text-center">
+          <h1 className="text-3xl font-bold text-black mb-1">Sign Up</h1>
           <p className="text-gray-600 text-sm">
             Create your Bin Drop account
           </p>
