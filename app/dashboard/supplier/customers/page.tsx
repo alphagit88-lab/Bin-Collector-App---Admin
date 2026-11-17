@@ -74,10 +74,14 @@ export default function SupplierCustomersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCustomer) return;
+    if (!formData.name.trim() || !formData.email.trim()) {
+      showToast('Name and email are required', 'error');
+      return;
+    }
     setSubmitting(true);
     const response = await api.put<any>(`/supplier/customers/${editingCustomer.id}`, {
-      name: formData.name,
-      email: formData.email || undefined,
+      name: formData.name.trim(),
+      email: formData.email.trim().toLowerCase(),
     });
     if (response.success) {
       showToast('Customer updated successfully', 'success');
@@ -91,8 +95,8 @@ export default function SupplierCustomersPage() {
 
   const handleAddCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addFormData.name.trim() || !addFormData.phone.trim()) {
-      showToast('Name and mobile number are required', 'error');
+    if (!addFormData.name.trim() || !addFormData.phone.trim() || !addFormData.email.trim()) {
+      showToast('Name, phone, and email are required', 'error');
       return;
     }
     const phoneError = validateCanadianPhone(addFormData.phone);
@@ -104,7 +108,7 @@ export default function SupplierCustomersPage() {
     const response = await api.post<any>('/supplier/customers', {
       name: addFormData.name.trim(),
       phone: normalizeCanadianPhone(addFormData.phone),
-      email: addFormData.email.trim() || undefined,
+      email: addFormData.email.trim().toLowerCase(),
     });
     if (response.success) {
       showToast(response.message || 'Customer added successfully', 'success');
@@ -241,12 +245,13 @@ export default function SupplierCustomersPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address <span className="text-red-500">*</span></label>
                     <input
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       placeholder="customer@example.com"
+                      required
                       className="w-full px-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 outline-none"
                     />
                   </div>
@@ -320,12 +325,13 @@ export default function SupplierCustomersPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address <span className="text-red-500">*</span></label>
                     <input
                       type="email"
                       placeholder="customer@example.com"
                       value={addFormData.email}
                       onChange={(e) => setAddFormData({ ...addFormData, email: e.target.value })}
+                      required
                       className="w-full px-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 outline-none"
                     />
                   </div>

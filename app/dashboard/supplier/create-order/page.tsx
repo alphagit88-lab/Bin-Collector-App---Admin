@@ -444,7 +444,11 @@ export default function CreateOrderPage() {
       showToast(phoneError, 'error');
       return;
     }
-    if (customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim())) {
+    if (!customerEmail.trim()) {
+      showToast('Customer email is required', 'error');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim())) {
       showToast('Enter a valid customer email address', 'error');
       return;
     }
@@ -454,7 +458,7 @@ export default function CreateOrderPage() {
       const formData = new FormData();
       formData.append('customer_name', customerName);
       formData.append('customer_phone', normalizeCanadianPhone(customerPhone));
-      if (customerEmail.trim()) formData.append('customer_email', customerEmail.trim().toLowerCase());
+      formData.append('customer_email', customerEmail.trim().toLowerCase());
       formData.append('service_category', serviceCategory);
       formData.append('location', location);
       formData.append('start_date', startDate);
@@ -584,13 +588,14 @@ export default function CreateOrderPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address <span className="text-red-500">*</span></label>
                 <input
                   type="email"
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
                   className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none ${selectedCustomerId ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                   placeholder="customer@example.com"
+                  required
                   readOnly={!!selectedCustomerId}
                 />
               </div>

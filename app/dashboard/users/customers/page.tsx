@@ -127,10 +127,15 @@ export default function CustomersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!formData.name.trim() || !formData.email.trim()) {
+      showToast('Name and email are required', 'error');
+      return;
+    }
+
     if (editingCustomer) {
       const response = await api.put<{ user: Customer }>(`/admin/users/${editingCustomer.id}`, {
-        name: formData.name,
-        email: formData.email || undefined,
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
       });
 
       if (response.success) {
@@ -153,9 +158,9 @@ export default function CustomersPage() {
       }
 
       const response = await api.post<{ user: Customer }>('/admin/users', {
-        name: formData.name,
+        name: formData.name.trim(),
         phone: normalizeCanadianPhone(formData.phone),
-        email: formData.email || undefined,
+        email: formData.email.trim().toLowerCase(),
         role: 'customer',
         password: normalizePassword(formData.password),
       });
@@ -352,12 +357,13 @@ export default function CustomersPage() {
                 )}
 
                 <div className="form-group">
-                  <label className="form-label">Email (Optional)</label>
+                  <label className="form-label">Email <span className="text-red-500">*</span></label>
                   <input
                     type="email"
                     className="form-control"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
                   />
                 </div>
 

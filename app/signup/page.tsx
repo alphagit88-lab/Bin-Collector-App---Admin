@@ -78,6 +78,16 @@ function SignupContent() {
       return;
     }
 
+    if (!email.trim()) {
+      setError('Email is required');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     const passwordError = validatePassword(password);
     if (passwordError) {
       setError(passwordError);
@@ -94,7 +104,7 @@ function SignupContent() {
     const result = await signup(
       name,
       normalizeCanadianPhone(phone),
-      email || undefined,
+      email.trim().toLowerCase(),
       role,
       normalizePassword(password),
       role === 'supplier' ? supplierType || undefined : undefined
@@ -158,13 +168,14 @@ function SignupContent() {
 
         <div>
           <label htmlFor="email" className="block text-xs sm:text-sm font-medium text-black mb-1.5">
-            Email Address <span className="text-gray-500 text-xs">(Optional)</span>
+            Email Address <span className="text-red-500">*</span>
           </label>
           <input
             type="email"
             id="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            required
             className="w-full h-10 rounded-md border border-gray-300 bg-background px-3 py-2 text-sm focus:border-[#10B981] focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:ring-offset-2"
             placeholder="you@example.com"
           />

@@ -106,9 +106,13 @@ export default function AccountSettingsPage() {
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim() || !email.trim()) {
+      showToast('Name and email are required', 'error');
+      return;
+    }
     setLoadingProfile(true);
     try {
-      const response = await api.put('/auth/profile', { name, email, phone });
+      const response = await api.put('/auth/profile', { name: name.trim(), email: email.trim().toLowerCase(), phone });
       if (response.success) {
         showToast('Profile updated successfully', 'success');
         refreshUser();
@@ -271,11 +275,12 @@ export default function AccountSettingsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address <span className="text-red-500">*</span></label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
                   className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 outline-none"
                 />
               </div>

@@ -344,6 +344,11 @@ export default function CustomerOrderPage() {
       return;
     }
 
+    if (!contactEmail.trim()) {
+      showToast('Contact email is required', 'error');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const formData = new FormData();
@@ -768,8 +773,8 @@ export default function CustomerOrderPage() {
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
-                        <input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)}
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email <span className="text-red-500">*</span></label>
+                        <input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} required
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 mb-4" />
                       </div>
                     </div>

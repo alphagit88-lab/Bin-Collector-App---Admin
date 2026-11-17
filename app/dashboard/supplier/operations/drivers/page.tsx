@@ -50,13 +50,17 @@ export default function DriversPage() {
 
   const handleAddDriver = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !phone || !password) {
+    if (!name.trim() || !phone.trim() || !email.trim() || !password) {
       showToast('Please fill in all required fields', 'error');
       return;
     }
     const phoneError = validateCanadianPhone(phone);
     if (phoneError) {
       showToast(phoneError, 'error');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      showToast('Enter a valid driver email address', 'error');
       return;
     }
     const passwordError = validatePassword(password);
@@ -68,9 +72,9 @@ export default function DriversPage() {
     try {
       setSubmitting(true);
       const response = await api.post('/supplier/drivers', {
-        name,
+        name: name.trim(),
         phone: normalizeCanadianPhone(phone),
-        email,
+        email: email.trim().toLowerCase(),
         password: normalizePassword(password),
         role: 'driver'
       });
@@ -214,12 +218,13 @@ export default function DriversPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="driver@example.com"
+                    required
                     className="w-full px-4 py-2 border rounded-md focus:ring-green-500 focus:border-green-500 outline-none"
                   />
                 </div>

@@ -221,6 +221,10 @@ function BookingsContent() {
       showToast(phoneError, 'error');
       return;
     }
+    if (!editContactEmail.trim()) {
+      showToast('Contact email is required', 'error');
+      return;
+    }
     setIsSavingEdit(true);
     try {
       const formData = new FormData();
@@ -643,8 +647,8 @@ function BookingsContent() {
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
-                  <input type="email" value={editContactEmail} onChange={e => setEditContactEmail(e.target.value)}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email <span className="text-red-500">*</span></label>
+                  <input type="email" value={editContactEmail} onChange={e => setEditContactEmail(e.target.value)} required
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
                 </div>
               </div>
