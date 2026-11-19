@@ -49,6 +49,7 @@ const STATUS_STEPS = [
   { key: 'awaiting_payment', label: 'Awaiting Payment', icon: '💳' },
   { key: 'confirmed', label: 'Confirmed', icon: '✅' },
   { key: 'on_delivery', label: 'On Delivery', icon: '🚛' },
+  { key: 'cash_collected', label: 'Cash Collected', icon: '💵' },
   { key: 'delivered', label: 'Delivered', icon: '📦' },
   { key: 'ready_to_pickup', label: 'Ready to Pickup', icon: '🔄' },
   { key: 'pickup', label: 'Pickup', icon: '⬇️' },
@@ -59,7 +60,6 @@ const getStatusOrder = (status: string) => {
   const normalized = status.toLowerCase();
   let stepKey = normalized;
   if (normalized === 'loaded') stepKey = 'on_delivery';
-  if (normalized === 'cash_collected') stepKey = 'delivered';
   
   const idx = STATUS_STEPS.findIndex(s => s.key === stepKey);
   return idx === -1 ? 0 : idx;
@@ -224,8 +224,12 @@ function TrackingContent() {
 
   const currentStepIdx = selectedRequest ? getStatusOrder(selectedRequest.status) : 0;
 
+  const isServiceOrder = selectedRequest?.service_category === 'service';
   const steps = STATUS_STEPS.filter(s => {
     if (s.key === 'awaiting_payment') return selectedRequest?.payment_method === 'online';
+    if (isServiceOrder && ['on_delivery', 'delivered', 'ready_to_pickup', 'pickup'].includes(s.key)) return false;
+    // cash_collected: show only for service orders (cash paid), hide for bin orders (maps to delivered there)
+    if (s.key === 'cash_collected') return isServiceOrder && selectedRequest?.payment_method === 'cash';
     return true;
   });
 

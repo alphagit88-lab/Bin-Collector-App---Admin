@@ -838,7 +838,7 @@ export default function CustomerOrderPage() {
                   )}
 
                   {/* Order Summary Card — shown when enough data exists (mirrors mobile) */}
-                  {(category !== 'service' && selectedBins.some(b => b.typeId && b.sizeId) && latitude && longitude && (category === 'commercial' || (startDate && endDate))) && (
+                  {(category !== 'service' && selectedBins.some(b => b.typeId && (b.sizeId || (!b.sizeId && (estimatedPrice || loadingEstimate)))) && latitude && longitude && (category === 'commercial' || (startDate && endDate))) && (
                     <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
                       <h3 className="font-bold text-gray-900 mb-4">Order Summary</h3>
 
