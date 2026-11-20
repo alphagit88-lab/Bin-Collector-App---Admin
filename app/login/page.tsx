@@ -20,6 +20,16 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get('returnUrl');
+  const errorParam = searchParams.get('error');
+  const reasonParam = searchParams.get('reason');
+
+  useEffect(() => {
+    if (errorParam) {
+      setError(errorParam);
+    } else if (reasonParam === 'inactive') {
+      setError('Your account is inactive. Please contact support.');
+    }
+  }, [errorParam, reasonParam]);
 
   // Pre-fill phone number and checkbox if remembered
   useEffect(() => {

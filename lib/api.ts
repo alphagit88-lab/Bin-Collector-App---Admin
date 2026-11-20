@@ -20,7 +20,7 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     const token = this.getAuthToken();
     const isFormData = options.body instanceof FormData;
-    
+
     const headers: Record<string, string> = {
       ...(options.headers as Record<string, string> | undefined),
     };
@@ -42,6 +42,17 @@ class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
+        if (typeof window !== 'undefined') {
+          const isInactive = response.status === 403 && typeof data?.message === 'string' && data.message.toLowerCase().includes('inactive');
+          const isUnauthorized = response.status === 401;
+
+          if (token && (isInactive || isUnauthorized) && !endpoint.includes('/auth/login')) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            const message = data.message || (isInactive ? 'Your account is inactive. Please contact support.' : 'Session expired. Please log in again.');
+            window.location.href = `/login?error=${encodeURIComponent(message)}`;
+          }
+        }
         throw new Error(data.message || 'Request failed');
       }
 
