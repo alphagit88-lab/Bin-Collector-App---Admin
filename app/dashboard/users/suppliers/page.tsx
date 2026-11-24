@@ -27,9 +27,16 @@ export default function SuppliersPage() {
   const { showToast } = useToast();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [hoveredTooltip, setHoveredTooltip] = useState<{
+    text: string;
+    x: number;
+    y: number;
+    placeAbove: boolean;
+  } | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -40,17 +47,28 @@ export default function SuppliersPage() {
 
   useEffect(() => {
     fetchSuppliers();
-  }, []);
+  }, [appliedSearch]);
 
   const fetchSuppliers = async () => {
     setLoading(true);
-    const response = await api.get<{ users: Supplier[] }>('/admin/users/supplier');
+    const searchParam = appliedSearch ? `?search=${encodeURIComponent(appliedSearch)}` : '';
+    const response = await api.get<{ users: Supplier[] }>(`/admin/users/supplier${searchParam}`);
     if (response.success && response.data) {
       setSuppliers(response.data.users);
     } else {
       showToast('Failed to fetch suppliers', 'error');
     }
     setLoading(false);
+  };
+
+  const handleApplyFilter = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setAppliedSearch(searchInput.trim());
+  };
+
+  const handleResetFilter = () => {
+    setSearchInput('');
+    setAppliedSearch('');
   };
 
   const handleCreate = () => {
@@ -175,20 +193,32 @@ export default function SuppliersPage() {
           </button>
         </div>
 
-        <div className="mb-4 rounded-xl bg-white p-4" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <input
-            type="text"
-            placeholder="Search by name, phone or email..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="form-control"
-            style={{ maxWidth: '360px' }}
-          />
-          {searchQuery && (
-            <button className="btn btn-outline btn-sm cursor-pointer" onClick={() => setSearchQuery('')}>
-              Clear
-            </button>
-          )}
+        {/* Filter bar */}
+        <div className="mb-6 rounded-xl bg-white p-4 shadow-sm border border-gray-100">
+          <form onSubmit={handleApplyFilter} className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1 max-w-md">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Search</label>
+              <input
+                type="text"
+                placeholder="Search by name, phone, email or city..."
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                className="form-control w-full"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" className="btn btn-primary cursor-pointer px-4 py-2">
+                Filter
+              </button>
+              <button
+                type="button"
+                onClick={handleResetFilter}
+                className="btn btn-outline cursor-pointer px-4 py-2"
+              >
+                Reset
+              </button>
+            </div>
+          </form>
         </div>
 
         <div className="table-container">
@@ -207,20 +237,14 @@ export default function SuppliersPage() {
               </tr>
             </thead>
             <tbody>
-              {suppliers.filter(s => {
-                const q = searchQuery.toLowerCase();
-                return !q || s.name.toLowerCase().includes(q) || s.phone.includes(q) || (s.email || '').toLowerCase().includes(q);
-              }).length === 0 ? (
+              {suppliers.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ textAlign: 'center', padding: '2rem' }}>
                     No suppliers found
                   </td>
                 </tr>
               ) : (
-                suppliers.filter(s => {
-                  const q = searchQuery.toLowerCase();
-                  return !q || s.name.toLowerCase().includes(q) || s.phone.includes(q) || (s.email || '').toLowerCase().includes(q);
-                }).map((supplier) => (
+                suppliers.map((supplier) => (
                   <tr key={supplier.id}>
                     <td style={{ fontWeight: 500 }}>{supplier.name}</td>
                     <td>{supplier.phone}</td>
@@ -236,19 +260,37 @@ export default function SuppliersPage() {
                     </td>
                     <td>
                       {supplier.serviceAreas ? (
-                        <span
-                          title={supplier.serviceAreas}
-                          style={{
-                            display: 'block',
-                            maxWidth: '160px',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            cursor: 'default',
-                          }}
-                        >
-                          {supplier.serviceAreas}
-                        </span>
+                        <div className="relative inline-block">
+                          <span
+                            onMouseEnter={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const placeAbove = rect.bottom + 120 > window.innerHeight;
+                              const x = Math.min(rect.left, Math.max(10, window.innerWidth - 340));
+                              const y = placeAbove ? rect.top - 6 : rect.bottom + 6;
+                              setHoveredTooltip({
+                                text: supplier.serviceAreas!,
+                                x,
+                                y,
+                                placeAbove,
+                              });
+                            }}
+                            onMouseLeave={() => setHoveredTooltip(null)}
+                            title={supplier.serviceAreas}
+                            style={{
+                              display: 'block',
+                              maxWidth: '160px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              cursor: 'pointer',
+                              color: 'var(--color-text-primary)',
+                              textDecoration: 'underline dotted',
+                              textUnderlineOffset: '3px',
+                            }}
+                          >
+                            {supplier.serviceAreas}
+                          </span>
+                        </div>
                       ) : (
                         <span style={{ color: 'var(--color-text-secondary)' }}>-</span>
                       )}
@@ -409,6 +451,35 @@ export default function SuppliersPage() {
                 </div>
               </form>
             </div>
+          </div>
+        )}
+
+        {/* Floating Service Areas Tooltip */}
+        {hoveredTooltip && (
+          <div
+            style={{
+              position: 'fixed',
+              left: hoveredTooltip.x,
+              top: hoveredTooltip.y,
+              transform: hoveredTooltip.placeAbove ? 'translateY(-100%)' : 'none',
+              zIndex: 9999,
+              maxWidth: '320px',
+              backgroundColor: '#1E293B',
+              color: '#FFFFFF',
+              fontSize: '0.8125rem',
+              lineHeight: '1.5',
+              padding: '0.625rem 0.875rem',
+              borderRadius: '0.5rem',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
+              pointerEvents: 'none',
+              wordBreak: 'break-word',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}
+          >
+            <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>
+              Service Locations
+            </div>
+            <div>{hoveredTooltip.text}</div>
           </div>
         )}
       </div>

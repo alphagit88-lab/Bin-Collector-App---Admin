@@ -24,7 +24,8 @@ export default function AdminsPage() {
   const { showToast } = useToast();
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
   const [formData, setFormData] = useState({
@@ -36,17 +37,30 @@ export default function AdminsPage() {
 
   useEffect(() => {
     fetchAdmins();
-  }, []);
+  }, [appliedSearch]);
 
   const fetchAdmins = async () => {
     setLoading(true);
-    const response = await api.get<{ admins: Admin[] }>('/admin');
+    const params = new URLSearchParams();
+    if (appliedSearch) params.set('search', appliedSearch);
+    const queryStr = params.toString() ? `?${params.toString()}` : '';
+    const response = await api.get<{ admins: Admin[] }>(`/admin${queryStr}`);
     if (response.success && response.data) {
       setAdmins(response.data.admins);
     } else {
       showToast('Failed to fetch admins', 'error');
     }
     setLoading(false);
+  };
+
+  const handleApplyFilter = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setAppliedSearch(searchInput.trim());
+  };
+
+  const handleResetFilter = () => {
+    setSearchInput('');
+    setAppliedSearch('');
   };
 
   const handleCreate = () => {
@@ -167,20 +181,32 @@ export default function AdminsPage() {
           </button>
         </div>
 
-        <div className="mb-4 rounded-xl bg-white p-4" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <input
-            type="text"
-            placeholder="Search by name, phone or email..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="form-control"
-            style={{ maxWidth: '360px' }}
-          />
-          {searchQuery && (
-            <button className="btn btn-outline btn-sm cursor-pointer" onClick={() => setSearchQuery('')}>
-              Clear
-            </button>
-          )}
+        {/* Filter bar */}
+        <div className="mb-6 rounded-xl bg-white p-4 shadow-sm border border-gray-100">
+          <form onSubmit={handleApplyFilter} className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1 max-w-md">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Search</label>
+              <input
+                type="text"
+                placeholder="Search by name, phone or email..."
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                className="form-control w-full"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" className="btn btn-primary cursor-pointer px-4 py-2">
+                Filter
+              </button>
+              <button
+                type="button"
+                onClick={handleResetFilter}
+                className="btn btn-outline cursor-pointer px-4 py-2"
+              >
+                Reset
+              </button>
+            </div>
+          </form>
         </div>
 
         <div className="table-container">
@@ -196,20 +222,14 @@ export default function AdminsPage() {
               </tr>
             </thead>
             <tbody>
-              {admins.filter(a => {
-                const q = searchQuery.toLowerCase();
-                return !q || a.name.toLowerCase().includes(q) || a.phone.includes(q) || (a.email || '').toLowerCase().includes(q);
-              }).length === 0 ? (
+              {admins.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>
                     No admins found
                   </td>
                 </tr>
               ) : (
-                admins.filter(a => {
-                  const q = searchQuery.toLowerCase();
-                  return !q || a.name.toLowerCase().includes(q) || a.phone.includes(q) || (a.email || '').toLowerCase().includes(q);
-                }).map((admin) => (
+                admins.map((admin) => (
                   <tr key={admin.id}>
                     <td style={{ fontWeight: 500 }}>{admin.name}</td>
                     <td>{admin.phone}</td>

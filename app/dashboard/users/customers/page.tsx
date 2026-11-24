@@ -5,9 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { api } from '@/lib/api';
 import { normalizePassword, validatePassword } from '@/lib/passwordValidation';
-import DateRangeFilter from '@/components/DateRangeFilter';
 import ListPagination from '@/components/ListPagination';
-import { useListPagination } from '@/hooks/useListPagination';
 import PasswordRequirements from '@/components/PasswordRequirements';
 import PasswordInput from '@/components/PasswordInput';
 import { normalizeCanadianPhone, validateCanadianPhone } from '@/lib/phoneValidation';
@@ -28,10 +26,15 @@ export default function CustomersPage() {
   const { user: currentUser } = useAuth();
   const { showToast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [page, setPage] = useState(1);
   const [serverTotalPages, setServerTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const customerPagination = useListPagination(customers, customer => customer.created_at, 10, serverTotalPages);
+  const [searchInput, setSearchInput] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [appliedStartDate, setAppliedStartDate] = useState('');
+  const [appliedEndDate, setAppliedEndDate] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({
@@ -43,13 +46,14 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchCustomers();
-  }, [customerPagination.page, customerPagination.startDate, customerPagination.endDate]);
+  }, [page, appliedSearch, appliedStartDate, appliedEndDate]);
 
   const fetchCustomers = async () => {
     setLoading(true);
-    const params = new URLSearchParams({ page: customerPagination.page.toString(), limit: '10' });
-    if (customerPagination.startDate) params.set('startDate', customerPagination.startDate);
-    if (customerPagination.endDate) params.set('endDate', customerPagination.endDate);
+    const params = new URLSearchParams({ page: page.toString(), limit: '10' });
+    if (appliedStartDate) params.set('startDate', appliedStartDate);
+    if (appliedEndDate) params.set('endDate', appliedEndDate);
+    if (appliedSearch) params.set('search', appliedSearch);
     const response = await api.get<{ users: Customer[]; pagination?: { totalPages: number } }>(`/admin/users/customer?${params}`);
     if (response.success && response.data) {
       setCustomers(response.data.users);
@@ -58,6 +62,24 @@ export default function CustomersPage() {
       showToast('Failed to fetch customers', 'error');
     }
     setLoading(false);
+  };
+
+  const handleApplyFilter = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setPage(1);
+    setAppliedSearch(searchInput.trim());
+    setAppliedStartDate(startDate);
+    setAppliedEndDate(endDate);
+  };
+
+  const handleResetFilter = () => {
+    setSearchInput('');
+    setStartDate('');
+    setEndDate('');
+    setPage(1);
+    setAppliedSearch('');
+    setAppliedStartDate('');
+    setAppliedEndDate('');
   };
 
   const handleToggleBilling = async (customer: Customer) => {
@@ -200,22 +222,54 @@ export default function CustomersPage() {
           </button>
         </div>
 
-        <div className="mb-4 rounded-xl bg-white p-4"><DateRangeFilter startDate={customerPagination.startDate} endDate={customerPagination.endDate} onStartDateChange={customerPagination.setStartDate} onEndDateChange={customerPagination.setEndDate} /></div>
-        <div className="mb-4 rounded-xl bg-white p-4" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <input
-            type="text"
-            placeholder="Search by name, phone or email..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="form-control"
-            style={{ maxWidth: '360px' }}
-          />
-          {searchQuery && (
-            <button className="btn btn-outline btn-sm cursor-pointer" onClick={() => setSearchQuery('')}>
-              Clear
-            </button>
-          )}
+        {/* Filter bar */}
+        <div className="mb-6 rounded-xl bg-white p-4 shadow-sm border border-gray-100">
+          <form onSubmit={handleApplyFilter} className="flex flex-col lg:flex-row lg:items-end gap-3">
+            <div className="flex-1 min-w-[240px]">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Search</label>
+              <input
+                type="text"
+                placeholder="Search by name, phone or email..."
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                className="form-control w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Start Date</label>
+              <input
+                type="date"
+                value={startDate}
+                max={endDate || undefined}
+                onChange={e => setStartDate(e.target.value)}
+                className="form-control"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">End Date</label>
+              <input
+                type="date"
+                value={endDate}
+                min={startDate || undefined}
+                onChange={e => setEndDate(e.target.value)}
+                className="form-control"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" className="btn btn-primary cursor-pointer px-4 py-2">
+                Filter
+              </button>
+              <button
+                type="button"
+                onClick={handleResetFilter}
+                className="btn btn-outline cursor-pointer px-4 py-2"
+              >
+                Reset
+              </button>
+            </div>
+          </form>
         </div>
+
         <div className="table-container">
           <table className="table">
             <thead>
@@ -231,14 +285,14 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {customerPagination.filteredItems.filter(c => { const q = searchQuery.toLowerCase(); return !q || c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.email || '').toLowerCase().includes(q); }).length === 0 ? (
+              {customers.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>
                     No customers found
                   </td>
                 </tr>
               ) : (
-                customerPagination.pagedItems.filter(c => { const q = searchQuery.toLowerCase(); return !q || c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.email || '').toLowerCase().includes(q); }).map((customer) => (
+                customers.map((customer) => (
                   <tr key={customer.id}>
                     <td style={{ fontWeight: 500 }}>{customer.name}</td>
                     <td>{customer.phone}</td>
@@ -308,7 +362,7 @@ export default function CustomersPage() {
               )}
             </tbody>
           </table>
-          <ListPagination page={customerPagination.page} totalPages={customerPagination.totalPages} onPageChange={customerPagination.setPage} />
+          <ListPagination page={page} totalPages={serverTotalPages} onPageChange={setPage} />
         </div>
 
         {showModal && (
