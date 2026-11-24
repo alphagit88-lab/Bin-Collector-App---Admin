@@ -11,6 +11,7 @@ interface Customer {
   phone: string;
   email?: string;
   created_at: string;
+  is_active: boolean;
 }
 
 export default function SupplierCustomersPage() {
@@ -40,7 +41,7 @@ export default function SupplierCustomersPage() {
 
   const fetchCustomers = async () => {
     setLoading(true);
-    const response = await api.get<any>('/supplier/customers');
+    const response = await api.get<any>('/supplier/customers?includeInactive=true');
     if (response.success && response.data) {
       // API returns { success, data: [...] }
       const list = Array.isArray(response.data) ? response.data : (response.data.data ?? []);
@@ -60,14 +61,15 @@ export default function SupplierCustomersPage() {
     setShowModal(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to remove this customer?')) return;
-    const response = await api.delete(`/supplier/customers/${id}`);
+  const handleToggleStatus = async (customer: Customer) => {
+    const action = customer.is_active ? 'deactivate' : 'activate';
+    if (!confirm(`Are you sure you want to ${action} this customer?`)) return;
+    const response = await api.put<any>(`/supplier/customers/${customer.id}/toggle`);
     if (response.success) {
-      showToast('Customer removed successfully', 'success');
-      setCustomers(prev => prev.filter(c => c.id !== id));
+      showToast(`Customer ${action}d successfully`, 'success');
+      setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, is_active: !c.is_active } : c));
     } else {
-      showToast(response.message || 'Failed to remove customer', 'error');
+      showToast(response.message || `Failed to ${action} customer`, 'error');
     }
   };
 
@@ -164,13 +166,14 @@ export default function SupplierCustomersPage() {
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Created</th>
+                <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {customers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-secondary)' }}>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-secondary)' }}>
                     No customers found. Customers are added automatically when you create orders for new customers.
                   </td>
                 </tr>
@@ -182,6 +185,18 @@ export default function SupplierCustomersPage() {
                     <td>{customer.email || '-'}</td>
                     <td>{new Date(customer.created_at).toLocaleDateString()}</td>
                     <td>
+                      <span style={{
+                        padding: '0.2rem 0.6rem',
+                        borderRadius: '999px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        backgroundColor: customer.is_active !== false ? '#D1FAE5' : '#FEE2E2',
+                        color: customer.is_active !== false ? '#065F46' : '#991B1B',
+                      }}>
+                        {customer.is_active !== false ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
                           className="btn btn-outline btn-sm cursor-pointer"
@@ -190,10 +205,10 @@ export default function SupplierCustomersPage() {
                           Edit
                         </button>
                         <button
-                          className="btn btn-danger btn-sm cursor-pointer"
-                          onClick={() => handleDelete(customer.id)}
+                          className={`btn btn-sm cursor-pointer ${customer.is_active !== false ? 'btn-danger' : 'btn-outline'}`}
+                          onClick={() => handleToggleStatus(customer)}
                         >
-                          Remove
+                          {customer.is_active !== false ? 'Deactivate' : 'Activate'}
                         </button>
                       </div>
                     </td>
