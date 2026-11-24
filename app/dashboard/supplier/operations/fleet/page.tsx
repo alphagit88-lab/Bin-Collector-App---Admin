@@ -31,6 +31,11 @@ export default function FleetPage() {
   const [bins, setBins] = useState<BinItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Edit Bin Modal State
+  const [editingBin, setEditingBin] = useState<BinItem | null>(null);
+  const [editBinCode, setEditBinCode] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
   // Add Bin Modal State
   const [showAddModal, setShowAddModal] = useState(false);
   const [binTypes, setBinTypes] = useState<BinType[]>([]);
@@ -185,6 +190,38 @@ export default function FleetPage() {
     }
   };
 
+  const handleEditBin = (bin: BinItem) => {
+    setEditingBin(bin);
+    setEditBinCode(bin.bin_code);
+  };
+
+  const handleSaveEditBin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBin) return;
+    const trimmedCode = editBinCode.trim();
+    if (!trimmedCode) {
+      showToast('Bin code is required', 'error');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const response = await api.put<any>(`/bins/physical/${editingBin.id}`, {
+        bin_code: trimmedCode,
+      });
+      if (response.success) {
+        showToast('Bin code updated successfully', 'success');
+        setEditingBin(null);
+        fetchBins();
+      } else {
+        showToast(response.message || 'Failed to update bin code', 'error');
+      }
+    } catch (error: any) {
+      showToast(error.message || 'An error occurred while updating bin code', 'error');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const handleUpdateStatus = async (binId: number, status: string) => {
     if (!confirm(`Are you sure you want to mark this bin as ${status}?`)) return;
     try {
@@ -274,17 +311,23 @@ export default function FleetPage() {
                       </td>
                       <td>
                         <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditBin(bin)}
+                            className="text-xs bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-100 font-medium cursor-pointer"
+                          >
+                            Edit
+                          </button>
                           {bin.status === 'available' ? (
                             <button
                               onClick={() => handleUpdateStatus(bin.id, 'unavailable')}
-                              className="text-xs bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded hover:bg-red-100 font-medium"
+                              className="text-xs bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded hover:bg-red-100 font-medium cursor-pointer"
                             >
                               Mark Unavailable
                             </button>
                           ) : (
                             <button
                               onClick={() => handleUpdateStatus(bin.id, 'available')}
-                              className="text-xs bg-green-50 text-green-600 border border-green-200 px-3 py-1.5 rounded hover:bg-green-100 font-medium"
+                              className="text-xs bg-green-50 text-green-600 border border-green-200 px-3 py-1.5 rounded hover:bg-green-100 font-medium cursor-pointer"
                             >
                               Mark Available
                             </button>
@@ -426,6 +469,91 @@ export default function FleetPage() {
                 {submitting ? 'Saving...' : 'Add Bin'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Bin Modal */}
+      {editingBin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
+              <h2 className="text-xl font-bold text-gray-800">Edit Physical Bin</h2>
+              <button onClick={() => setEditingBin(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditBin} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Bin Code <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editBinCode}
+                  onChange={(e) => setEditBinCode(e.target.value)}
+                  placeholder="e.g. BIN-001"
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 outline-none font-mono"
+                />
+                <p className="text-xs text-gray-400 mt-1">Unique code or serial used to identify this physical bin.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Bin Type</label>
+                <input
+                  type="text"
+                  value={editingBin.bin_type_name}
+                  disabled
+                  className="w-full px-4 py-2 border border-gray-200 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Bin Size</label>
+                <input
+                  type="text"
+                  value={editingBin.bin_size || 'N/A'}
+                  disabled
+                  className="w-full px-4 py-2 border border-gray-200 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+                <input
+                  type="text"
+                  value={editingBin.status.charAt(0).toUpperCase() + editingBin.status.slice(1)}
+                  disabled
+                  className="w-full px-4 py-2 border border-gray-200 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed outline-none"
+                />
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+                Type, size, and status cannot be modified here to protect existing orders and pricing consistency.
+              </div>
+
+              <div className="pt-2 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingBin(null)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md font-medium flex items-center cursor-pointer disabled:opacity-50"
+                >
+                  {savingEdit ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

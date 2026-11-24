@@ -24,6 +24,7 @@ export default function AdminsPage() {
   const { showToast } = useToast();
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
   const [formData, setFormData] = useState({
@@ -166,6 +167,22 @@ export default function AdminsPage() {
           </button>
         </div>
 
+        <div className="mb-4 rounded-xl bg-white p-4" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Search by name, phone or email..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="form-control"
+            style={{ maxWidth: '360px' }}
+          />
+          {searchQuery && (
+            <button className="btn btn-outline btn-sm cursor-pointer" onClick={() => setSearchQuery('')}>
+              Clear
+            </button>
+          )}
+        </div>
+
         <div className="table-container">
           <table className="table">
             <thead>
@@ -179,14 +196,20 @@ export default function AdminsPage() {
               </tr>
             </thead>
             <tbody>
-              {admins.length === 0 ? (
+              {admins.filter(a => {
+                const q = searchQuery.toLowerCase();
+                return !q || a.name.toLowerCase().includes(q) || a.phone.includes(q) || (a.email || '').toLowerCase().includes(q);
+              }).length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>
                     No admins found
                   </td>
                 </tr>
               ) : (
-                admins.map((admin) => (
+                admins.filter(a => {
+                  const q = searchQuery.toLowerCase();
+                  return !q || a.name.toLowerCase().includes(q) || a.phone.includes(q) || (a.email || '').toLowerCase().includes(q);
+                }).map((admin) => (
                   <tr key={admin.id}>
                     <td style={{ fontWeight: 500 }}>{admin.name}</td>
                     <td>{admin.phone}</td>

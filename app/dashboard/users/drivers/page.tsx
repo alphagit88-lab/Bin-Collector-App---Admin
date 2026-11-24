@@ -33,6 +33,7 @@ export default function DriversPage() {
   const [drivers, setDrivers] = useState<User[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingDriver, setEditingDriver] = useState<User | null>(null);
   const [formData, setFormData] = useState({
@@ -189,6 +190,22 @@ export default function DriversPage() {
           </button>
         </div>
 
+        <div className="mb-4 rounded-xl bg-white p-4" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Search by name, phone or email..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="form-control"
+            style={{ maxWidth: '360px' }}
+          />
+          {searchQuery && (
+            <button className="btn btn-outline btn-sm cursor-pointer" onClick={() => setSearchQuery('')}>
+              Clear
+            </button>
+          )}
+        </div>
+
         <div className="table-container">
           <table className="table">
             <thead>
@@ -204,14 +221,20 @@ export default function DriversPage() {
               </tr>
             </thead>
             <tbody>
-              {drivers.length === 0 ? (
+              {drivers.filter(d => {
+                const q = searchQuery.toLowerCase();
+                return !q || d.name.toLowerCase().includes(q) || d.phone.includes(q) || (d.email || '').toLowerCase().includes(q);
+              }).length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>
                     No drivers found
                   </td>
                 </tr>
               ) : (
-                drivers.map((driver) => (
+                drivers.filter(d => {
+                  const q = searchQuery.toLowerCase();
+                  return !q || d.name.toLowerCase().includes(q) || d.phone.includes(q) || (d.email || '').toLowerCase().includes(q);
+                }).map((driver) => (
                   <tr key={driver.id}>
                     <td style={{ fontWeight: 500 }}>{driver.name}</td>
                     <td>{driver.phone}</td>

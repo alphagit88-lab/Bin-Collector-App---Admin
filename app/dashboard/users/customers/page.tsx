@@ -30,6 +30,7 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [serverTotalPages, setServerTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const customerPagination = useListPagination(customers, customer => customer.created_at, 10, serverTotalPages);
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -200,6 +201,21 @@ export default function CustomersPage() {
         </div>
 
         <div className="mb-4 rounded-xl bg-white p-4"><DateRangeFilter startDate={customerPagination.startDate} endDate={customerPagination.endDate} onStartDateChange={customerPagination.setStartDate} onEndDateChange={customerPagination.setEndDate} /></div>
+        <div className="mb-4 rounded-xl bg-white p-4" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Search by name, phone or email..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="form-control"
+            style={{ maxWidth: '360px' }}
+          />
+          {searchQuery && (
+            <button className="btn btn-outline btn-sm cursor-pointer" onClick={() => setSearchQuery('')}>
+              Clear
+            </button>
+          )}
+        </div>
         <div className="table-container">
           <table className="table">
             <thead>
@@ -215,14 +231,14 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {customerPagination.filteredItems.length === 0 ? (
+              {customerPagination.filteredItems.filter(c => { const q = searchQuery.toLowerCase(); return !q || c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.email || '').toLowerCase().includes(q); }).length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>
                     No customers found
                   </td>
                 </tr>
               ) : (
-                customerPagination.pagedItems.map((customer) => (
+                customerPagination.pagedItems.filter(c => { const q = searchQuery.toLowerCase(); return !q || c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.email || '').toLowerCase().includes(q); }).map((customer) => (
                   <tr key={customer.id}>
                     <td style={{ fontWeight: 500 }}>{customer.name}</td>
                     <td>{customer.phone}</td>

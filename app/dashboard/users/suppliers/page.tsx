@@ -18,6 +18,7 @@ interface Supplier {
   supplierType?: 'commercial' | 'residential' | 'commercial_residential' | null;
   deleteRequest?: boolean;
   isActive: boolean;
+  serviceAreas?: string | null;
   created_at: string;
 }
 
@@ -26,6 +27,7 @@ export default function SuppliersPage() {
   const { showToast } = useToast();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [formData, setFormData] = useState({
@@ -173,6 +175,22 @@ export default function SuppliersPage() {
           </button>
         </div>
 
+        <div className="mb-4 rounded-xl bg-white p-4" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Search by name, phone or email..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="form-control"
+            style={{ maxWidth: '360px' }}
+          />
+          {searchQuery && (
+            <button className="btn btn-outline btn-sm cursor-pointer" onClick={() => setSearchQuery('')}>
+              Clear
+            </button>
+          )}
+        </div>
+
         <div className="table-container">
           <table className="table">
             <thead>
@@ -181,6 +199,7 @@ export default function SuppliersPage() {
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Type</th>
+                <th>Service Areas</th>
                 <th>Status</th>
                 <th>Delete Request</th>
                 <th>Created</th>
@@ -188,14 +207,20 @@ export default function SuppliersPage() {
               </tr>
             </thead>
             <tbody>
-              {suppliers.length === 0 ? (
+              {suppliers.filter(s => {
+                const q = searchQuery.toLowerCase();
+                return !q || s.name.toLowerCase().includes(q) || s.phone.includes(q) || (s.email || '').toLowerCase().includes(q);
+              }).length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: '2rem' }}>
                     No suppliers found
                   </td>
                 </tr>
               ) : (
-                suppliers.map((supplier) => (
+                suppliers.filter(s => {
+                  const q = searchQuery.toLowerCase();
+                  return !q || s.name.toLowerCase().includes(q) || s.phone.includes(q) || (s.email || '').toLowerCase().includes(q);
+                }).map((supplier) => (
                   <tr key={supplier.id}>
                     <td style={{ fontWeight: 500 }}>{supplier.name}</td>
                     <td>{supplier.phone}</td>
@@ -208,6 +233,25 @@ export default function SuppliersPage() {
                         : supplier.supplierType === 'commercial_residential'
                         ? 'Commercial / Residential'
                         : '-'}
+                    </td>
+                    <td>
+                      {supplier.serviceAreas ? (
+                        <span
+                          title={supplier.serviceAreas}
+                          style={{
+                            display: 'block',
+                            maxWidth: '160px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            cursor: 'default',
+                          }}
+                        >
+                          {supplier.serviceAreas}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--color-text-secondary)' }}>-</span>
+                      )}
                     </td>
                     <td>
                       <span style={{ color: supplier.isActive ? '#059669' : '#D97706', fontWeight: 600 }}>

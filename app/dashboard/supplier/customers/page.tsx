@@ -18,6 +18,7 @@ export default function SupplierCustomersPage() {
   const { showToast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -158,6 +159,22 @@ export default function SupplierCustomersPage() {
           </button>
         </div>
 
+        <div className="mb-4 rounded-xl bg-white p-4" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Search by name, phone or email..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="form-control"
+            style={{ maxWidth: '360px' }}
+          />
+          {searchQuery && (
+            <button className="btn btn-outline btn-sm cursor-pointer" onClick={() => setSearchQuery('')}>
+              Clear
+            </button>
+          )}
+        </div>
+
         <div className="table-container">
           <table className="table">
             <thead>
@@ -171,14 +188,14 @@ export default function SupplierCustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {customers.length === 0 ? (
+              {customers.filter(c => { const q = searchQuery.toLowerCase(); return !q || c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.email || '').toLowerCase().includes(q); }).length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-secondary)' }}>
                     No customers found. Customers are added automatically when you create orders for new customers.
                   </td>
                 </tr>
               ) : (
-                customers.map((customer) => (
+                customers.filter(c => { const q = searchQuery.toLowerCase(); return !q || c.name.toLowerCase().includes(q) || c.phone.includes(q) || (c.email || '').toLowerCase().includes(q); }).map((customer) => (
                   <tr key={customer.id}>
                     <td style={{ fontWeight: 500 }}>{customer.name}</td>
                     <td>{customer.phone}</td>
