@@ -476,8 +476,8 @@ export default function FleetPage() {
       {/* Edit Bin Modal */}
       {editingBin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50 shrink-0">
               <h2 className="text-xl font-bold text-gray-800">Edit Physical Bin</h2>
               <button onClick={() => setEditingBin(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -487,7 +487,7 @@ export default function FleetPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditBin} className="p-6 space-y-4">
+            <form id="edit-bin-form" onSubmit={handleSaveEditBin} className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Bin Code <span className="text-red-500">*</span>
@@ -536,24 +536,25 @@ export default function FleetPage() {
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
                 Type, size, and status cannot be modified here to protect existing orders and pricing consistency.
               </div>
-
-              <div className="pt-2 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setEditingBin(null)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md font-medium cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingEdit}
-                  className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md font-medium flex items-center cursor-pointer disabled:opacity-50"
-                >
-                  {savingEdit ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
             </form>
+
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setEditingBin(null)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md font-medium cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="edit-bin-form"
+                disabled={savingEdit}
+                className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md font-medium flex items-center cursor-pointer disabled:opacity-50"
+              >
+                {savingEdit ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
           </div>
         </div>
       )}
