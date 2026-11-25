@@ -60,21 +60,11 @@ function AcceptInvitationContent() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 p-8 text-center">
         {/* BinDrop Logo Header */}
         <div className="mb-6 flex justify-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#29B554] to-[#6EAD16] flex items-center justify-center shadow-lg shadow-green-500/20">
-            <svg
-              className="w-8 h-8 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-          </div>
+          <img
+            src="/logo-bd.png"
+            alt="BinDrop"
+            className="w-44 sm:w-48 h-auto object-contain rounded-xl shadow-sm"
+          />
         </div>
 
         {loading ? (
