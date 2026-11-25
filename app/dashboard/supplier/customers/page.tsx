@@ -12,6 +12,8 @@ interface Customer {
   email?: string;
   created_at: string;
   is_active: boolean;
+  accepted_at?: string | null;
+  invitation_pending?: boolean;
 }
 
 export default function SupplierCustomersPage() {
@@ -75,6 +77,10 @@ export default function SupplierCustomersPage() {
   };
 
   const handleToggleStatus = async (customer: Customer) => {
+    if (!customer.accepted_at && !customer.is_active) {
+      showToast('Cannot activate customer until they accept the invitation sent to their email', 'error');
+      return;
+    }
     const action = customer.is_active ? 'deactivate' : 'activate';
     if (!confirm(`Are you sure you want to ${action} this customer?`)) return;
     const response = await api.put<any>(`/supplier/customers/${customer.id}/toggle`);
@@ -226,16 +232,32 @@ export default function SupplierCustomersPage() {
                     <td>{customer.email || '-'}</td>
                     <td>{new Date(customer.created_at).toLocaleDateString()}</td>
                     <td>
-                      <span style={{
-                        padding: '0.2rem 0.6rem',
-                        borderRadius: '999px',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        backgroundColor: customer.is_active !== false ? '#D1FAE5' : '#FEE2E2',
-                        color: customer.is_active !== false ? '#065F46' : '#991B1B',
-                      }}>
-                        {customer.is_active !== false ? 'Active' : 'Inactive'}
-                      </span>
+                      {customer.accepted_at ? (
+                        <span style={{
+                          padding: '0.2rem 0.6rem',
+                          borderRadius: '999px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          backgroundColor: customer.is_active !== false ? '#D1FAE5' : '#FEE2E2',
+                          color: customer.is_active !== false ? '#065F46' : '#991B1B',
+                        }}>
+                          {customer.is_active !== false ? 'Active' : 'Inactive'}
+                        </span>
+                      ) : (
+                        <span
+                          title="Customer has been invited but has not yet accepted"
+                          style={{
+                            padding: '0.2rem 0.6rem',
+                            borderRadius: '999px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            backgroundColor: '#FEF3C7',
+                            color: '#92400E',
+                          }}
+                        >
+                          Pending Acceptance
+                        </span>
+                      )}
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -245,12 +267,22 @@ export default function SupplierCustomersPage() {
                         >
                           Edit
                         </button>
-                        <button
-                          className={`btn btn-sm cursor-pointer ${customer.is_active !== false ? 'btn-danger' : 'btn-outline'}`}
-                          onClick={() => handleToggleStatus(customer)}
-                        >
-                          {customer.is_active !== false ? 'Deactivate' : 'Activate'}
-                        </button>
+                        {customer.accepted_at ? (
+                          <button
+                            className={`btn btn-sm cursor-pointer ${customer.is_active !== false ? 'btn-danger' : 'btn-outline'}`}
+                            onClick={() => handleToggleStatus(customer)}
+                          >
+                            {customer.is_active !== false ? 'Deactivate' : 'Activate'}
+                          </button>
+                        ) : (
+                          <button
+                            className="btn btn-sm btn-outline opacity-50 cursor-not-allowed"
+                            disabled
+                            title="Customer must accept the invitation email before they can be activated"
+                          >
+                            Activate
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
