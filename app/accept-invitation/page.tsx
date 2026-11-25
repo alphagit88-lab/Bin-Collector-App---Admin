@@ -60,11 +60,13 @@ function AcceptInvitationContent() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 p-8 text-center">
         {/* BinDrop Logo Header */}
         <div className="mb-6 flex justify-center">
-          <img
-            src="/logo-bd.png"
-            alt="BinDrop"
-            className="w-44 sm:w-48 h-auto object-contain rounded-xl shadow-sm"
-          />
+          <div className="inline-flex items-center justify-center bg-[#050504] px-5 py-2.5 rounded-xl shadow-sm">
+            <img
+              src="/logo-bd.png"
+              alt="BinDrop"
+              className="w-40 sm:w-44 h-auto object-contain block"
+            />
+          </div>
         </div>
 
         {loading ? (
