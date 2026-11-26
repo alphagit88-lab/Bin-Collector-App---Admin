@@ -483,6 +483,10 @@ select,
   border-left: 4px solid var(--success);
 }
 
+.toast-info {
+  border-left: 4px solid var(--secondary);
+}
+
 .toast-error {
   border-left: 4px solid var(--danger);
 }

@@ -40,6 +40,7 @@ export default function CustomerOrderPage() {
   const [longitude, setLongitude] = useState<number | null>(null);
   const [mapCenter, setMapCenter] = useState({ lat: 43.6532, lng: -79.3832 });
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const lastFetchedBinsKeyRef = useRef<string>('');
 
   const [availableBins, setAvailableBins] = useState<any[]>([]);
   const [binSizesMap, setBinSizesMap] = useState<Record<number, any[]>>({});
@@ -167,14 +168,50 @@ export default function CustomerOrderPage() {
     }
   }, [user]);
 
-  // When location/category/supplier changes, fetch available bins or services
+  const fetchBins = async (lat = latitude, lon = longitude, supplierId = selectedSupplier) => {
+    if (!lat || !lon) return;
+    const fetchKey = `${lat},${lon},${supplierId || ''}`;
+    if (lastFetchedBinsKeyRef.current === fetchKey) return;
+    lastFetchedBinsKeyRef.current = fetchKey;
+
+    try {
+      const supplierParam = supplierId ? `&supplierId=${supplierId}` : '';
+      const res = await api.get<{ binTypes: any[] }>(`/bins/available-types?lat=${lat}&lon=${lon}${supplierParam}`);
+      if (res.success && res.data) {
+        const binTypes = res.data.binTypes || [];
+        setAvailableBins(binTypes);
+
+        if (
+          binTypes !== null &&
+          binTypes !== undefined &&
+          Array.isArray(binTypes) &&
+          binTypes.length === 0
+        ) {
+          showToast(res.message || 'No bins available in this area', 'info');
+        }
+      }
+    } catch {
+      showToast('Failed to load available bins for this location', 'error');
+    }
+  };
+
+  // Fetch available bin types once location data is available or when supplier/category changes
+  useEffect(() => {
+    if (latitude && longitude && category !== 'service') {
+      fetchBins(latitude, longitude, selectedSupplier);
+    } else if (!latitude || !longitude) {
+      setAvailableBins([]);
+      setBinSizesMap({});
+      lastFetchedBinsKeyRef.current = '';
+    }
+  }, [latitude, longitude, category, selectedSupplier]);
+
+  // When step 2 is active, ensure services are loaded (for service category) and pre-filled sizes
   useEffect(() => {
     if (step === 2 && latitude && longitude) {
       if (category === 'service') {
         fetchServices();
       } else {
-        fetchBins();
-        
         // Also fetch sizes for any pre-filled bins if not already loaded
         selectedBins.forEach(bin => {
           if (bin.typeId && !binSizesMap[bin.typeId]) {
@@ -183,19 +220,7 @@ export default function CustomerOrderPage() {
         });
       }
     }
-  }, [step, latitude, longitude, category, selectedBins, binSizesMap, selectedSupplier]);
-
-  const fetchBins = async () => {
-    try {
-      const supplierParam = selectedSupplier ? `&supplierId=${selectedSupplier}` : '';
-      const res = await api.get<{ binTypes: any[] }>(`/bins/available-types?lat=${latitude}&lon=${longitude}${supplierParam}`);
-      if (res.success && res.data) {
-        setAvailableBins(res.data.binTypes || []);
-      }
-    } catch {
-      showToast('Failed to load available bins for this location', 'error');
-    }
-  };
+  }, [step, latitude, longitude, category, selectedBins, binSizesMap]);
 
   const fetchBinSizes = async (typeId: number, lat = latitude, lon = longitude) => {
     if (binSizesMap[typeId]) return; // Already fetched
