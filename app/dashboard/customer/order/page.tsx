@@ -69,6 +69,7 @@ export default function CustomerOrderPage() {
   // Payment
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
   const [estimatedPrice, setEstimatedPrice] = useState<{ base_price: number, subtotal: number, total: number, gst_amount: number, gst_rate: number, duration_days: number | null, additional_duration_charge: number, exceeded_days: number | null } | null>(null);
+  const [priceRange, setPriceRange] = useState<number>(10);
   const [loadingEstimate, setLoadingEstimate] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -319,6 +320,9 @@ export default function CustomerOrderPage() {
 
       const res = await api.post<any>('/bookings/calculate-price', payload);
       if (res.success && res.data) {
+        if (res.data.supplier_select_price_range !== undefined) {
+          setPriceRange(Number(res.data.supplier_select_price_range));
+        }
         setEstimatedPrice({
           base_price: res.data.base_price || 0,
           subtotal: res.data.subtotal || 0,
@@ -449,10 +453,6 @@ export default function CustomerOrderPage() {
             quantity: b.quantity || '1'
           }));
           formData.append('bins', JSON.stringify(mappedBins));
-          const finalSupplierId = selectedSupplier || assignedSupplierId;
-          if (finalSupplierId) {
-            formData.append('supplier_id', finalSupplierId);
-          }
           attachments.forEach((file) => {
             formData.append('attachments', file);
           });
@@ -989,6 +989,16 @@ export default function CustomerOrderPage() {
                                 )}
                               </div>
                             </>
+                          )}
+                          {category !== 'commercial' && (
+                            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 text-xs flex items-start gap-2.5">
+                              <svg className="w-4 h-4 mt-0.5 shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span className="leading-relaxed">
+                                <strong>Notice:</strong> Estimated price is based on competitive supplier rates in your area and may vary within ${priceRange} upon supplier acceptance.
+                              </span>
+                            </div>
                           )}
                         </>
                       ) : estimateError ? (

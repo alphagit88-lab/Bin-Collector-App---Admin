@@ -114,8 +114,12 @@ function SupplierJobsContent() {
     };
 
     socket.on('status_update', handleStatusUpdate);
+    socket.on('request_removed', handleStatusUpdate);
+    socket.on('order_claimed', handleStatusUpdate);
     return () => {
       socket.off('status_update', handleStatusUpdate);
+      socket.off('request_removed', handleStatusUpdate);
+      socket.off('order_claimed', handleStatusUpdate);
     };
   }, [socket, fetchBookings]);
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useToast } from '@/contexts/ToastContext';
+import { useSocket } from '@/contexts/SocketContext';
 import { api } from '@/lib/api';
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
 import JobDetailModal from '@/components/dashboard/JobDetailModal';
@@ -48,6 +49,7 @@ interface ServiceRequest {
 
 export default function SupplierRequestsPage() {
   const { showToast } = useToast();
+  const { socket } = useSocket();
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAttachments, setSelectedAttachments] = useState<string[] | null>(null);
@@ -64,6 +66,34 @@ export default function SupplierRequestsPage() {
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewRequest = () => {
+      fetchRequests();
+    };
+
+    const handleRequestRemoved = (data: { id: number; requestId?: string; message?: string }) => {
+      setRequests(prev => prev.filter(r => Number(r.id) !== Number(data.id)));
+      showToast(data.message || `Request #${data.requestId || data.id} has been accepted by another supplier.`, 'info');
+    };
+
+    const handleOrderClaimed = (data: { id: number; requestId?: string; supplierId?: number }) => {
+      setRequests(prev => prev.filter(r => Number(r.id) !== Number(data.id)));
+      showToast(`Request #${data.requestId || data.id} has been accepted by another supplier.`, 'info');
+    };
+
+    socket.on('new_request', handleNewRequest);
+    socket.on('request_removed', handleRequestRemoved);
+    socket.on('order_claimed', handleOrderClaimed);
+
+    return () => {
+      socket.off('new_request', handleNewRequest);
+      socket.off('request_removed', handleRequestRemoved);
+      socket.off('order_claimed', handleOrderClaimed);
+    };
+  }, [socket]);
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -89,10 +119,12 @@ export default function SupplierRequestsPage() {
         showToast('Request accepted successfully', 'success');
         fetchRequests(); // Refresh list
       } else {
-        showToast(response.error || 'Failed to accept request', 'error');
+        showToast(response.message || response.error || 'Failed to accept request', 'error');
+        fetchRequests(); // Refresh list to remove it if claimed by another supplier
       }
     } catch (error) {
       showToast('Failed to accept request', 'error');
+      fetchRequests();
     }
   };
 
