@@ -294,6 +294,17 @@ export default function DashboardSidebar() {
       ),
     },
     {
+      label: 'Order Dispatcher',
+      href: '/dashboard/supplier/order-dispatcher',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 6h18M3 12h12M3 18h8" />
+          <circle cx="19" cy="15" r="2" />
+          <path d="M19 17v4" />
+        </svg>
+      ),
+    },
+    {
       label: 'Customers',
       href: '/dashboard/supplier/customers',
       icon: (
